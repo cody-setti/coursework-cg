@@ -1,4 +1,4 @@
-#include <glad/glad.h>                                  // GLAD = Multi-Language GL/GLES/EGL/GLX/WGL Loader-Generator.
+#include <glad/gl.h>                                  // GLAD = Multi-Language GL/GLES/EGL/GLX/WGL Loader-Generator.
 							// 	> GLES = OpenGL for Embedded Systems
 							// 	> EGL  = Embedded-System Graphics Library
 							// 	> GLX  = OpenGL Extension to the X Window System
@@ -69,7 +69,7 @@ int main() {                                            // Main execution entry 
     GLFWwindow* window = glfwCreateWindow(800, 600, "Proj 1", NULL, NULL); // Allocate memory and ask the OS for a window.
     glfwMakeContextCurrent(window);                     // Tell OpenGL that subsequent API calls apply to this specific window.
     glfwSetKeyCallback(window, key_callback);           // Register our custom input function with GLFW's event system.
-    gladLoadGLLoader((GLADloadproc)glfwGetProcAddress); // Initialize GLAD using GLFW's memory pointers to map the OpenGL API.
+    gladLoadGL((GLADloadfunc)glfwGetProcAddress); // Initialize GLAD using GLFW's memory pointers to map the OpenGL API.
 
     unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER); // Allocate GPU memory for a new vertex shader object.
     glShaderSource(vertexShader, 1, &vertexShaderSource, NULL); // Inject our GLSL string into the created shader object.
