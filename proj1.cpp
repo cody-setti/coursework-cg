@@ -1,5 +1,3 @@
-#include <array>
-#include <cmath>
 #include <glad/gl.h>                                  // GLAD = Multi-Language GL/GLES/EGL/GLX/WGL Loader-Generator.
 							// 	> GLES = OpenGL for Embedded Systems
 							// 	> EGL  = Embedded-System Graphics Library
@@ -20,8 +18,12 @@
 #include <glm/gtc/type_ptr.hpp>                         // Convert C++ GLM matrix objects into flat memory arrays for OpenGL.
 
 #include <iostream>                                     // iostream = Input/Output Stream
-#include <vector>
 							// Output compilation errors to the terminal.
+#include <vector>
+#include <array>
+#include <cmath>
+
+#include "rat.cpp"
 
 
 std::array<float, 3> sphere_to_cartesian(float u, float v, float r)
@@ -113,6 +115,7 @@ int main() {                                            // Main execution entry 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);      // Request OpenGL version 3.x to ensure modern pipeline features.
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);      // Request OpenGL version x.3 (creating a 3.3 context).
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // Explicitly disable deprecated legacy functions.
+    glfwWindowHint(GLFW_DEPTH_BITS, 24);
 
     GLFWwindow* window = glfwCreateWindow(800, 800, "Proj 1", NULL, NULL); // Allocate memory and ask the OS for a window.
     glfwMakeContextCurrent(window);                     // Tell OpenGL that subsequent API calls apply to this specific window.
@@ -134,167 +137,7 @@ int main() {                                            // Main execution entry 
     glDeleteShader(vertexShader);                       // Free memory, as the individual shader is no longer needed after linking.
     glDeleteShader(fragmentShader);                     // Free memory, as the individual shader is no longer needed after linking.
 
-    std::vector<float> vertices = {
-                /*Body*/
-        //belly
-        6.0, 2.0, 0.0,
-        12.0, 2.0, 0.0,
-        12.0, 2.0, 6.0,
-
-        6.0, 2.0, 0.0,
-        12.0, 2.0, 6.0,
-        6.0, 2.0, 6.0,
-
-        //left side
-        6.0, 2.0, 0.0,
-        6.0, 3.0, 0.0,
-        12.0, 3.0, 0.0,
-
-        6.0, 2.0, 0.0,
-        12.0, 3.0, 0.0,
-        12.0, 2.0, 0.0,
-
-        6.0, 3.0, 0.0,
-        6.0, 5.0, 2.0,
-        12.0, 5.0, 2.0,
-
-        6.0, 3.0, 0.0,
-        12.0, 5.0, 2.0,
-        12.0, 3.0, 0.0,
-
-        //right side
-        6.0, 2.0, 6.0,
-        6.0, 3.0, 6.0,
-        12.0, 3.0, 6.0,
-
-        6.0, 2.0, 6.0,
-        12.0, 3.0, 6.0,
-        12.0, 2.0, 6.0,
-
-        6.0, 3.0, 6.0,
-        6.0, 5.0, 4.0,
-        12.0, 5.0, 4.0,
-
-        6.0, 3.0, 6.0,
-        12.0, 5.0, 4.0,
-        12.0, 3.0, 6.0,
-
-        //top
-        6.0, 5.0, 2.0,
-        12.0, 5.0, 2.0,
-        12.0, 5.0, 4.0,
-
-        6.0, 5.0, 2.0,
-        12.0, 5.0, 4.0,
-        6.0, 5.0, 4.0,
-
-        //booty
-        12.0, 2.0, 0.0,
-        12.0, 2.0, 6.0,
-        14.0, 2.0, 4.0,
-
-        12.0, 2.0, 0.0,
-        14.0, 2.0, 4.0,
-        14.0, 2.0, 2.0,
-
-        12.0, 2.0, 0.0,
-        14.0, 2.0, 2.0,
-        14.0, 3.0, 2.0,
-
-        12.0, 2.0, 0.0,
-        14.0, 3.0, 2.0,
-        12.0, 3.0, 0.0,
-
-        12.0, 2.0, 6.0,
-        14.0, 2.0, 4.0,
-        14.0, 3.0, 4.0,
-
-        12.0, 2.0, 6.0,
-        14.0, 3.0, 4.0,
-        12.0, 3.0, 6.0,
-
-        14.0, 2.0, 2.0,
-        14.0, 2.0, 4.0,
-        14.0, 3.0, 4.0,
-
-        14.0, 2.0, 2.0,
-        14.0, 3.0, 4.0,
-        14.0, 3.0, 2.0,
-
-        12.0, 3.0, 0.0,
-        12.0, 5.0, 2.0,
-        14.0, 3.0, 2.0,
-
-        12.0, 3.0, 6.0,
-        12.0, 5.0, 4.0,
-        14.0, 3.0, 4.0,
-
-        14.0, 3.0, 2.0,
-        14.0, 3.0, 4.0,
-        12.0, 5.0, 2.0,
-
-        14.0, 3.0, 4.0,
-        12.0, 5.0, 2.0,
-        12.0, 5.0, 4.0,
-
-                /* neck */
-        6.0, 2.0, 0.0,
-        6.0, 3.0, 0.0,
-        4.0, 3.0, 1.0,
-
-        6.0, 2.0, 6.0,
-        6.0, 3.0, 6.0,
-        4.0, 3.0, 5.0,
-
-        6.0, 2.0, 0.0,
-        4.0, 3.0, 1.0,
-        6.0, 2.0, 6.0,
-
-        4.0, 3.0, 1.0,
-        6.0, 2.0, 6.0,
-        4.0, 3.0, 5.0,
-
-        6.0, 3.0, 0.0,
-        6.0, 5.0, 2.0,
-        4.0, 3.0, 1.0,
-
-        6.0, 3.0, 6.0,
-        6.0, 5.0, 4.0,
-        4.0, 3.0, 5.0,
-
-        6.0, 5.0, 2.0,
-        6.0, 5.0, 4.0,
-        4.0, 5.0, 4.0,
-
-        6.0, 5.0, 2.0,
-        4.0, 5.0, 4.0,
-        4.0, 5.0, 2.0,
-
-        6.0, 5.0, 2.0,
-        4.0, 5.0, 2.0,
-        4.0, 3.0, 1.0,
-
-        6.0, 5.0, 4.0,
-        4.0, 5.0, 4.0,
-        4.0, 3.0, 5.0,
-
-                /* face */
-        4.0, 5.0, 2.0,
-        4.0, 5.0, 4.0,
-        0.0, 3.0, 3.0,
-
-        4.0, 5.0, 2.0,
-        4.0, 3.0, 1.0,
-        0.0, 3.0, 3.0,
-
-        4.0, 5.0, 4.0,
-        4.0, 3.0, 5.0,
-        0.0, 3.0, 3.0,
-
-        4.0, 3.0, 5.0,
-        4.0, 3.0, 1.0,
-        0.0, 3.0, 3.0,
-    };
+    std::vector<float> vertices = get_rat_vec(); 
 
 
     unsigned int VBO, VAO;                              // Declare handles for managing GPU memory objects.
@@ -311,15 +154,23 @@ int main() {                                            // Main execution entry 
 
     int loc_color = glGetUniformLocation(shaderProgram, "color");
 
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glDepthMask(GL_TRUE);
+    glClearDepth(1.0);
+
     while (!glfwWindowShouldClose(window)) {            // Keep the application running until an exit signal is received.
+        
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);           // Define the default background color for the window.
-        glClear(GL_COLOR_BUFFER_BIT);                   // Wipe the previous frame's pixels, preventing visual trailing.
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);                   // Wipe the previous frame's pixels, preventing visual trailing.
 
         glUseProgram(shaderProgram);                    // Instruct the GPU to use our specific custom shader pipeline.
 
         glm::mat4 trans = glm::mat4(1.0f);              // Initialize an identity matrix (doing nothing by default).
-        trans = glm::scale(trans, glm::vec3(0.05));
-        trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(1.0f, 1.0f, 1.0f)); // Required to apply a rotation transformation over time.
+        trans = glm::scale(trans, glm::vec3(0.07, 0.07, -0.07)); //TODO: why the fuck I need to mirror the Z direction for it to work?
+        trans = glm::rotate(trans, (float)(M_PI / 4.0), glm::vec3(1.0f, 1.0f, 0.0f)); // Required to apply a rotation transformation over time.
+
         trans = glm::translate(trans, glm::vec3(-9.5, -3.0, -3.0));
 
         unsigned int transformLoc = glGetUniformLocation(shaderProgram, "transform"); // Find where the matrix variable lives in GPU memory.
@@ -327,8 +178,10 @@ int main() {                                            // Main execution entry 
 
         glBindVertexArray(VAO);                         // Recall all the data mapping configurations we set up earlier.
         glUniform4f(loc_color, 0.6, 0.3, 0.0, 1.0);
-        glDrawArrays(GL_TRIANGLES, 0, vertices.size()/3);               // Execute the actual rasterization command, drawing 3 vertices.
+        glDrawArrays(GL_TRIANGLES, 0, 192);               // Execute the actual rasterization command, drawing 3 vertices.
 
+        glUniform4f(loc_color, 1.0, 0.9, 0.8, 1.0);
+        glDrawArrays(GL_TRIANGLES, 192, vertices.size()/3 - 192);
 
         glfwSwapBuffers(window);                        // Push the newly drawn frame to the screen (double buffering).
         glfwPollEvents();                               // Process pending OS events like mouse movements or 'p' key presses.
