@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <glad/gl.h>                                  // GLAD = Multi-Language GL/GLES/EGL/GLX/WGL Loader-Generator.
 							// 	> GLES = OpenGL for Embedded Systems
 							// 	> EGL  = Embedded-System Graphics Library
@@ -8,6 +9,7 @@
 #include <GLFW/glfw3.h>                                 // GLFW = Graphics Library FRAMEWORK.
 							// Create an OS window and capture keyboard inputs.
 
+#include <glm/ext/matrix_float4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/glm.hpp>                                  // GLM = OpenGL Mathematics.
 							// Provide GLSL-compatible vector and matrix types.
@@ -24,60 +26,32 @@
 #include <cmath>
 
 #include "rat.cpp"
+#include "aux_funcs.cpp"
 
 
-std::array<float, 3> sphere_to_cartesian(float u, float v, float r)
-{
-    float x = r * std::sin(v) * std::cos(u);
-    float y = r * std::sin(v) * std::sin(u);
-    float z = r * std::cos(v);
+typedef struct State {
+    float speed_x_rat, speed_y_rat, inc_x_rat, inc_y_rat;
+    float ang_speed_mousetrap, inc_mousetrap;
+    float speed_scale_cheese, inc_cheese;
+    bool wireframeMode;
+} State;
 
-    return {x, y, z};
-}
-
-std::vector<float> sphere_vertex(float r, int num_sectors, int num_stacks) {
-    float sector_step = (2 * M_PI) / num_sectors;
-    float stack_step = M_PI / num_stacks;
-    std::vector<float> vertex_list;
-
-    for(int i = 0; i < num_sectors; i++) {
-        for(int j =0; j < num_stacks; j++) {
-            float u = i * sector_step;
-            float v = j * stack_step;
-
-            float un = 0.0;
-            if(i+1 == num_sectors) un = 2 * M_PI;
-            else un = (i+1) * sector_step;
-
-            float vn = 0.0;
-            if(j+1 == num_stacks) vn = M_PI;
-            else vn = (j+1) * stack_step;
-
-            std::array<float, 3> p0 = sphere_to_cartesian(u, v, r);
-            std::array<float, 3> p1 = sphere_to_cartesian(u, vn, r);
-            std::array<float, 3> p2 = sphere_to_cartesian(un, v, r);
-            std::array<float, 3> p3 = sphere_to_cartesian(un, vn, r);
-            
-            vertex_list.push_back(p0[0]); vertex_list.push_back(p0[1]); vertex_list.push_back(p0[2]);
-            vertex_list.push_back(p2[0]); vertex_list.push_back(p2[1]); vertex_list.push_back(p2[2]);
-            vertex_list.push_back(p1[0]); vertex_list.push_back(p1[1]); vertex_list.push_back(p1[2]);
-
-            vertex_list.push_back(p3[0]); vertex_list.push_back(p3[1]); vertex_list.push_back(p3[2]);
-            vertex_list.push_back(p1[0]); vertex_list.push_back(p1[1]); vertex_list.push_back(p1[2]);
-            vertex_list.push_back(p2[0]); vertex_list.push_back(p2[1]); vertex_list.push_back(p2[2]);
-        }
-    }
-
-    return vertex_list;
+State* init_state(float inc_x_rat, float inc_y_rat, float inc_mousetrap, float inc_cheese) {
+    State *aux = (State*)malloc(sizeof(State));
+    aux->speed_x_rat = 0.0;
+    aux->speed_y_rat = 0.0;
+    aux->ang_speed_mousetrap = 0.0;
+    aux-> speed_scale_cheese = 0.0;
+    aux->wireframeMode = false;
+    aux->inc_cheese = inc_cheese;
+    aux->inc_mousetrap = inc_mousetrap;
+    aux->inc_x_rat = inc_x_rat;
+    aux->inc_y_rat = inc_y_rat;
+    return aux;
 }
 
 
-
-
-
-bool wireframeMode = false;                             // Track the current state of the polygon rendering mode.
-							// Wireframe mode draws only the edges ("wires") of the polygon.
-
+                            //https://discourse.glfw.org/t/passing-parameters-to-callbacks/848
 void key_callback(
 		GLFWwindow* window,	// Specific OS window that receive the input event.
 		int key,		// Standardized GLFW key token (e.g., GLFW_KEY_P).
@@ -85,14 +59,19 @@ void key_callback(
 		int action,		// The state change (e.g., GLFW_PRESS, GLFW_RELEASE, etc).
 		int mods		// A bit field of held modifier keys (Shift, Ctrl, Alt, etc.)
 ) {							// Required signature by GLFW to intercept OS keyboard events.
-
+    State* state = static_cast<State*>(glfwGetWindowUserPointer(window));
     if (key == GLFW_KEY_P && action == GLFW_PRESS) {    // Isolate the specific 'p' key press event.
-        wireframeMode = !wireframeMode;
-        if (wireframeMode)
+        state->wireframeMode = !state->wireframeMode;
+        if (state->wireframeMode)
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);  // Instruct the rasterizer to only draw lines between vertices.
         else
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);  // Instruct the rasterizer to fill the polygons with color.
     }
+
+    if(key == GLFW_KEY_LEFT) state->speed_x_rat -= state->inc_x_rat;
+    if(key == GLFW_KEY_RIGHT) state->speed_x_rat += state->inc_x_rat;
+    if(key == GLFW_KEY_DOWN) state->speed_y_rat -= state->inc_y_rat;
+    if(key == GLFW_KEY_UP) state->speed_y_rat += state->inc_y_rat;
 }
 
 const char* vertexShaderSource =
@@ -110,6 +89,51 @@ const char* fragmentShaderSource =
     "   gl_FragColor = color;\n"                         // Assign the RGB color
     "}\n\0";                                            // Null-terminator for standard C-string parsing.
 
+
+
+
+//====================================================================================
+//----------------------------------draw functions------------------------------------
+//====================================================================================
+
+
+
+void draw_rat(size_t ini_pos, size_t num, int loc_transform, int loc_color, float pos_x, float pos_y, State *state) {
+        //sacel the rat
+        glm::mat4 scale = glm::mat4(
+            0.03, 0.0,  0.0,   0.0,
+            0.0,  0.03, 0.0,   0.0,
+            0.0,  0.0,  -0.03, 0.0, //TODO: discover why this needs to be negative
+            0.0,  0.0,  0.0,   1.0
+        );
+        //moves the rat to the origin
+        glm::mat4 translate_ori = glm::mat4(
+            1.0,   0.0,  0.0, 0.0,
+            0.0,   1.0,  0.0, 0.0,
+            0.0,   0.0,  1.0, 0.0,
+            -9.5, -3.0, -3.0, 1.0
+        );
+        glm::mat4 translate = glm::mat4(
+            1.0,   0.0,  0.0, 0.0,
+            0.0,   1.0,  0.0, 0.0,
+            0.0,   0.0,  1.0, 0.0,
+            pos_x, pos_y, 0.0, 1.0
+        );
+        glm::mat4 trans = translate * scale * translate_ori;
+        glUniformMatrix4fv(loc_transform, 1, GL_FALSE, glm::value_ptr(trans));
+        glUniform4f(loc_color, 0.6, 0.3, 0.0, 1.0);
+        glDrawArrays(GL_TRIANGLES, ini_pos/3, 192);
+
+        glUniform4f(loc_color, 1.0, 0.9, 0.8, 1.0);
+        glDrawArrays(GL_TRIANGLES, ini_pos/3 + 192, num/3 - 192);
+}
+
+
+
+//====================================================================================
+//------------------------------------main--------------------------------------------
+//====================================================================================
+
 int main() {                                            // Main execution entry point for a C++ application.
     glfwInit();                                         // Initialize the GLFW library before any of its functions can be used.
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);      // Request OpenGL version 3.x to ensure modern pipeline features.
@@ -119,6 +143,10 @@ int main() {                                            // Main execution entry 
 
     GLFWwindow* window = glfwCreateWindow(800, 800, "Proj 1", NULL, NULL); // Allocate memory and ask the OS for a window.
     glfwMakeContextCurrent(window);                     // Tell OpenGL that subsequent API calls apply to this specific window.
+
+
+    State *state = init_state(0.001, 0.001, 0.01, 0.001);
+    glfwSetWindowUserPointer(window, (void*)state);
     glfwSetKeyCallback(window, key_callback);           // Register our custom input function with GLFW's event system.
     gladLoadGL((GLADloadfunc)glfwGetProcAddress); // Initialize GLAD using GLFW's memory pointers to map the OpenGL API.
 
@@ -137,7 +165,14 @@ int main() {                                            // Main execution entry 
     glDeleteShader(vertexShader);                       // Free memory, as the individual shader is no longer needed after linking.
     glDeleteShader(fragmentShader);                     // Free memory, as the individual shader is no longer needed after linking.
 
-    std::vector<float> vertices = get_rat_vec(); 
+
+    //====================================================================================
+    //---------------------------vertex vector--------------------------------------------
+    //====================================================================================
+    std::vector<float> vertices;
+
+    size_t ini_rat, num_rat;
+    add_object(get_rat_vec(), vertices, ini_rat, num_rat);
 
 
     unsigned int VBO, VAO;                              // Declare handles for managing GPU memory objects.
@@ -157,31 +192,30 @@ int main() {                                            // Main execution entry 
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
-    glDepthMask(GL_TRUE);
-    glClearDepth(1.0);
+
+
+
+    float pos_x_rat = 0.5, pos_y_rat = 0.0;
+    //====================================================================================
+    //------------------------------------window loop-------------------------------------
+    //====================================================================================
 
     while (!glfwWindowShouldClose(window)) {            // Keep the application running until an exit signal is received.
-        
+        pos_x_rat += state->speed_x_rat;
+        pos_y_rat += state->speed_y_rat;
+
+
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);           // Define the default background color for the window.
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);                   // Wipe the previous frame's pixels, preventing visual trailing.
 
         glUseProgram(shaderProgram);                    // Instruct the GPU to use our specific custom shader pipeline.
 
-        glm::mat4 trans = glm::mat4(1.0f);              // Initialize an identity matrix (doing nothing by default).
-        trans = glm::scale(trans, glm::vec3(0.07, 0.07, -0.07)); //TODO: why the fuck I need to mirror the Z direction for it to work?
-        trans = glm::rotate(trans, (float)(M_PI / 4.0), glm::vec3(1.0f, 1.0f, 0.0f)); // Required to apply a rotation transformation over time.
-
-        trans = glm::translate(trans, glm::vec3(-9.5, -3.0, -3.0));
-
-        unsigned int transformLoc = glGetUniformLocation(shaderProgram, "transform"); // Find where the matrix variable lives in GPU memory.
-        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans)); // Send the matrix data from CPU to GPU before drawing.
+        unsigned int loc_transform = glGetUniformLocation(shaderProgram, "transform"); // Find where the matrix variable lives in GPU memory.
+        
 
         glBindVertexArray(VAO);                         // Recall all the data mapping configurations we set up earlier.
-        glUniform4f(loc_color, 0.6, 0.3, 0.0, 1.0);
-        glDrawArrays(GL_TRIANGLES, 0, 192);               // Execute the actual rasterization command, drawing 3 vertices.
 
-        glUniform4f(loc_color, 1.0, 0.9, 0.8, 1.0);
-        glDrawArrays(GL_TRIANGLES, 192, vertices.size()/3 - 192);
+        draw_rat(ini_rat, num_rat, loc_transform, loc_color, pos_x_rat, pos_y_rat, state);
 
         glfwSwapBuffers(window);                        // Push the newly drawn frame to the screen (double buffering).
         glfwPollEvents();                               // Process pending OS events like mouse movements or 'p' key presses.
