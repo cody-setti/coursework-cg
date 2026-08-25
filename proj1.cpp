@@ -10,6 +10,7 @@
 #include <GLFW/glfw3.h>                                 // GLFW = Graphics Library FRAMEWORK.
 							// Create an OS window and capture keyboard inputs.
 
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/glm.hpp>                                  // GLM = OpenGL Mathematics.
 							// Provide GLSL-compatible vector and matrix types.
 							// 	> GLSL = OpenGL Shading Language
@@ -133,7 +134,167 @@ int main() {                                            // Main execution entry 
     glDeleteShader(vertexShader);                       // Free memory, as the individual shader is no longer needed after linking.
     glDeleteShader(fragmentShader);                     // Free memory, as the individual shader is no longer needed after linking.
 
-    std::vector vertices = sphere_vertex(0.3, 32, 32);
+    std::vector<float> vertices = {
+                /*Body*/
+        //belly
+        6.0, 2.0, 0.0,
+        12.0, 2.0, 0.0,
+        12.0, 2.0, 6.0,
+
+        6.0, 2.0, 0.0,
+        12.0, 2.0, 6.0,
+        6.0, 2.0, 6.0,
+
+        //left side
+        6.0, 2.0, 0.0,
+        6.0, 3.0, 0.0,
+        12.0, 3.0, 0.0,
+
+        6.0, 2.0, 0.0,
+        12.0, 3.0, 0.0,
+        12.0, 2.0, 0.0,
+
+        6.0, 3.0, 0.0,
+        6.0, 5.0, 2.0,
+        12.0, 5.0, 2.0,
+
+        6.0, 3.0, 0.0,
+        12.0, 5.0, 2.0,
+        12.0, 3.0, 0.0,
+
+        //right side
+        6.0, 2.0, 6.0,
+        6.0, 3.0, 6.0,
+        12.0, 3.0, 6.0,
+
+        6.0, 2.0, 6.0,
+        12.0, 3.0, 6.0,
+        12.0, 2.0, 6.0,
+
+        6.0, 3.0, 6.0,
+        6.0, 5.0, 4.0,
+        12.0, 5.0, 4.0,
+
+        6.0, 3.0, 6.0,
+        12.0, 5.0, 4.0,
+        12.0, 3.0, 6.0,
+
+        //top
+        6.0, 5.0, 2.0,
+        12.0, 5.0, 2.0,
+        12.0, 5.0, 4.0,
+
+        6.0, 5.0, 2.0,
+        12.0, 5.0, 4.0,
+        6.0, 5.0, 4.0,
+
+        //booty
+        12.0, 2.0, 0.0,
+        12.0, 2.0, 6.0,
+        14.0, 2.0, 4.0,
+
+        12.0, 2.0, 0.0,
+        14.0, 2.0, 4.0,
+        14.0, 2.0, 2.0,
+
+        12.0, 2.0, 0.0,
+        14.0, 2.0, 2.0,
+        14.0, 3.0, 2.0,
+
+        12.0, 2.0, 0.0,
+        14.0, 3.0, 2.0,
+        12.0, 3.0, 0.0,
+
+        12.0, 2.0, 6.0,
+        14.0, 2.0, 4.0,
+        14.0, 3.0, 4.0,
+
+        12.0, 2.0, 6.0,
+        14.0, 3.0, 4.0,
+        12.0, 3.0, 6.0,
+
+        14.0, 2.0, 2.0,
+        14.0, 2.0, 4.0,
+        14.0, 3.0, 4.0,
+
+        14.0, 2.0, 2.0,
+        14.0, 3.0, 4.0,
+        14.0, 3.0, 2.0,
+
+        12.0, 3.0, 0.0,
+        12.0, 5.0, 2.0,
+        14.0, 3.0, 2.0,
+
+        12.0, 3.0, 6.0,
+        12.0, 5.0, 4.0,
+        14.0, 3.0, 4.0,
+
+        14.0, 3.0, 2.0,
+        14.0, 3.0, 4.0,
+        12.0, 5.0, 2.0,
+
+        14.0, 3.0, 4.0,
+        12.0, 5.0, 2.0,
+        12.0, 5.0, 4.0,
+
+                /* neck */
+        6.0, 2.0, 0.0,
+        6.0, 3.0, 0.0,
+        4.0, 3.0, 1.0,
+
+        6.0, 2.0, 6.0,
+        6.0, 3.0, 6.0,
+        4.0, 3.0, 5.0,
+
+        6.0, 2.0, 0.0,
+        4.0, 3.0, 1.0,
+        6.0, 2.0, 6.0,
+
+        4.0, 3.0, 1.0,
+        6.0, 2.0, 6.0,
+        4.0, 3.0, 5.0,
+
+        6.0, 3.0, 0.0,
+        6.0, 5.0, 2.0,
+        4.0, 3.0, 1.0,
+
+        6.0, 3.0, 6.0,
+        6.0, 5.0, 4.0,
+        4.0, 3.0, 5.0,
+
+        6.0, 5.0, 2.0,
+        6.0, 5.0, 4.0,
+        4.0, 5.0, 4.0,
+
+        6.0, 5.0, 2.0,
+        4.0, 5.0, 4.0,
+        4.0, 5.0, 2.0,
+
+        6.0, 5.0, 2.0,
+        4.0, 5.0, 2.0,
+        4.0, 3.0, 1.0,
+
+        6.0, 5.0, 4.0,
+        4.0, 5.0, 4.0,
+        4.0, 3.0, 5.0,
+
+                /* face */
+        4.0, 5.0, 2.0,
+        4.0, 5.0, 4.0,
+        0.0, 3.0, 3.0,
+
+        4.0, 5.0, 2.0,
+        4.0, 3.0, 1.0,
+        0.0, 3.0, 3.0,
+
+        4.0, 5.0, 4.0,
+        4.0, 3.0, 5.0,
+        0.0, 3.0, 3.0,
+
+        4.0, 3.0, 5.0,
+        4.0, 3.0, 1.0,
+        0.0, 3.0, 3.0,
+    };
 
 
     unsigned int VBO, VAO;                              // Declare handles for managing GPU memory objects.
@@ -151,19 +312,21 @@ int main() {                                            // Main execution entry 
     int loc_color = glGetUniformLocation(shaderProgram, "color");
 
     while (!glfwWindowShouldClose(window)) {            // Keep the application running until an exit signal is received.
-        glClearColor(0.6f, 0.3f, 0.0f, 1.0f);           // Define the default background color for the window.
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);           // Define the default background color for the window.
         glClear(GL_COLOR_BUFFER_BIT);                   // Wipe the previous frame's pixels, preventing visual trailing.
 
         glUseProgram(shaderProgram);                    // Instruct the GPU to use our specific custom shader pipeline.
 
         glm::mat4 trans = glm::mat4(1.0f);              // Initialize an identity matrix (doing nothing by default).
-        //trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f)); // Required to apply a rotation transformation over time.
-        
+        trans = glm::scale(trans, glm::vec3(0.05));
+        trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(1.0f, 1.0f, 1.0f)); // Required to apply a rotation transformation over time.
+        trans = glm::translate(trans, glm::vec3(-9.5, -3.0, -3.0));
+
         unsigned int transformLoc = glGetUniformLocation(shaderProgram, "transform"); // Find where the matrix variable lives in GPU memory.
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans)); // Send the matrix data from CPU to GPU before drawing.
 
         glBindVertexArray(VAO);                         // Recall all the data mapping configurations we set up earlier.
-        glUniform4f(loc_color, 1.0, 1.0, 0.0, 1.0);
+        glUniform4f(loc_color, 0.6, 0.3, 0.0, 1.0);
         glDrawArrays(GL_TRIANGLES, 0, vertices.size()/3);               // Execute the actual rasterization command, drawing 3 vertices.
 
 
