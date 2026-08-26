@@ -29,8 +29,9 @@
 #include "aux_funcs.cpp"
 
 
-typedef struct State {
+typedef struct State { //struct that allows us to not need global variables to use in key_callback().
     float speed_x_rat, speed_y_rat, inc_x_rat, inc_y_rat;
+    int rat_flip;
     float ang_speed_mousetrap, inc_mousetrap;
     float speed_scale_cheese, inc_cheese;
     bool wireframeMode;
@@ -43,6 +44,7 @@ State* init_state(float inc_x_rat, float inc_y_rat, float inc_mousetrap, float i
     aux->ang_speed_mousetrap = 0.0;
     aux-> speed_scale_cheese = 0.0;
     aux->wireframeMode = false;
+    aux->rat_flip = 0;
     aux->inc_cheese = inc_cheese;
     aux->inc_mousetrap = inc_mousetrap;
     aux->inc_x_rat = inc_x_rat;
@@ -72,6 +74,7 @@ void key_callback(
     if(key == GLFW_KEY_RIGHT) state->speed_x_rat += state->inc_x_rat;
     if(key == GLFW_KEY_DOWN) state->speed_y_rat -= state->inc_y_rat;
     if(key == GLFW_KEY_UP) state->speed_y_rat += state->inc_y_rat;
+    if(key == GLFW_KEY_F) state->rat_flip += 1;
 }
 
 const char* vertexShaderSource =
@@ -95,11 +98,104 @@ const char* fragmentShaderSource =
 //====================================================================================
 //----------------------------------draw functions------------------------------------
 //====================================================================================
+//Keep in mind that we must transpose the matrix first before plugging it into a glm::mat4
 
 
+void draw_rat(
+        size_t ini_pos, 
+        size_t num, 
+        int loc_transform, 
+        int loc_color, 
+        float& pos_x, 
+        float& pos_y, 
+        bool& flip_done, 
+        float& flip_angle, 
+        State *state
+) {
+        //The matrixes we're going to use
+        glm::mat4 rotation_z;
+        glm::mat4 rotation_x;
+        glm::mat4 rotation_y;
+        glm::mat4 rot_final;
 
-void draw_rat(size_t ini_pos, size_t num, int loc_transform, int loc_color, float pos_x, float pos_y, State *state) {
-        //sacel the rat
+        if(fabs(state->speed_x_rat) <= state->inc_x_rat * 0.9) state->speed_x_rat = 0.0; //zeroes the speed if is smaller than an increment
+        if(fabs(state->speed_y_rat) <= state->inc_y_rat * 0.9) state->speed_y_rat = 0.0; //zeroes the speed if is smaller than an increment
+        if(state->rat_flip == 0) { //if the rat is not ready to flip
+            pos_x += state->speed_x_rat; //updates the position
+            pos_y += state->speed_y_rat; //updates the position
+        }
+        else if(state->rat_flip >= 1){
+            if(pos_y <= 0.5 && !flip_done) pos_y += state->rat_flip * state->inc_y_rat;
+            else if(flip_done) pos_y -= state->rat_flip * state->inc_y_rat;
+            else flip_angle -= state->rat_flip * 0.04;
+        }
+        if(flip_angle <= - M_PI * 2) {
+            flip_angle = 0.0;
+            flip_done = true;
+        }
+        if(flip_done && pos_y <= 0.0) {
+            state->rat_flip -= 1;
+            flip_done = false;
+        }
+        
+        if(pos_y < 0.0) pos_y = 0.0; //Limits the position of the rat. below 0.0 there's the table
+
+
+        if(pos_y > 0.0 && state->rat_flip == 0) { //The mouse is crawling on the walls
+            rotation_x = glm::mat4( //This rotates the mouse 90 degrees counter-clockwise, so it's top is facing us
+                1.0, 0.0, 0.0, 0.0,
+                0.0, 0.0, -1.0, 0.0,
+                0.0, 1.0, 0.0, 0.0,
+                0.0, 0.0, 0.0, 1.0
+            );
+            if(state->speed_x_rat == 0.0 && state->speed_y_rat == 0.0) rot_final = rotation_x; //if the rat is stationary, there's no speed vector
+            else { //otherwise, we have a speed vector defined and we can rotate the rat so it's facing that direction
+                float hip = sqrt(state->speed_x_rat * state->speed_x_rat + state->speed_y_rat * state->speed_y_rat);
+                float cos = -state->speed_x_rat / hip; // minus sign because the rat's face originally points to the right
+                float sin = -state->speed_y_rat / hip;
+
+                rotation_z = glm::mat4(
+                    cos, sin, 0.0, 0.0,
+                    -sin, cos, 0.0, 0.0,
+                    0.0, 0.0, 1.0, 0.0,
+                    0.0, 0.0, 0.0, 1.0
+                );
+                rot_final = rotation_z * rotation_x;
+            }
+        }
+
+        else { //if the rat is on the table (the sky is blue) or fliping
+            float cos_t = cos(flip_angle);
+            float sin_t = sin(flip_angle);
+
+            rotation_x = glm::mat4( //This rotates the mouse at the flip angle
+                1.0, 0.0, 0.0, 0.0,
+                0.0, cos_t, sin_t, 0.0,
+                0.0, -sin_t, cos_t, 0.0,
+                0.0, 0.0, 0.0, 1.0
+            );
+
+            if(state->speed_x_rat > 0.0) //facing right
+            {
+                rotation_y = glm::mat4(
+                    -1.0, 0.0, 0.0, 0.0,
+                    0.0, 1.0, 0.0, 0.0,
+                    0.0, 0.0, -1.0, 0.0,
+                    0.0, 0.0, 0.0, 1.0
+                );
+            }
+            else { //facing left
+                rotation_y = glm::mat4(
+                    1.0, 0.0, 0.0, 0.0,
+                    0.0, 1.0, 0.0, 0.0,
+                    0.0, 0.0, 1.0, 0.0,
+                    0.0, 0.0, 0.0, 1.0
+                ); 
+            }
+            rot_final = rotation_x * rotation_y;
+        } 
+
+        //scale the rat
         glm::mat4 scale = glm::mat4(
             0.03, 0.0,  0.0,   0.0,
             0.0,  0.03, 0.0,   0.0,
@@ -113,13 +209,14 @@ void draw_rat(size_t ini_pos, size_t num, int loc_transform, int loc_color, floa
             0.0,   0.0,  1.0, 0.0,
             -9.5, -3.0, -3.0, 1.0
         );
+        //moves the rat through the screen
         glm::mat4 translate = glm::mat4(
             1.0,   0.0,  0.0, 0.0,
             0.0,   1.0,  0.0, 0.0,
             0.0,   0.0,  1.0, 0.0,
             pos_x, pos_y, 0.0, 1.0
         );
-        glm::mat4 trans = translate * scale * translate_ori;
+        glm::mat4 trans = translate * rot_final * scale * translate_ori;
         glUniformMatrix4fv(loc_transform, 1, GL_FALSE, glm::value_ptr(trans));
         glUniform4f(loc_color, 0.6, 0.3, 0.0, 1.0);
         glDrawArrays(GL_TRIANGLES, ini_pos/3, 192);
@@ -195,17 +292,16 @@ int main() {                                            // Main execution entry 
 
 
 
-    float pos_x_rat = 0.5, pos_y_rat = 0.0;
+    float pos_x_rat = 0.5, pos_y_rat = 0.0, rat_flip_angle = 0.0;
+    bool rat_flip_done = false;
     //====================================================================================
     //------------------------------------window loop-------------------------------------
     //====================================================================================
 
     while (!glfwWindowShouldClose(window)) {            // Keep the application running until an exit signal is received.
-        pos_x_rat += state->speed_x_rat;
-        pos_y_rat += state->speed_y_rat;
 
 
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);           // Define the default background color for the window.
+        glClearColor(0.0f, 1.0f, 1.0f, 1.0f);           // Define the default background color for the window.
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);                   // Wipe the previous frame's pixels, preventing visual trailing.
 
         glUseProgram(shaderProgram);                    // Instruct the GPU to use our specific custom shader pipeline.
@@ -215,7 +311,7 @@ int main() {                                            // Main execution entry 
 
         glBindVertexArray(VAO);                         // Recall all the data mapping configurations we set up earlier.
 
-        draw_rat(ini_rat, num_rat, loc_transform, loc_color, pos_x_rat, pos_y_rat, state);
+        draw_rat(ini_rat, num_rat, loc_transform, loc_color, pos_x_rat, pos_y_rat, rat_flip_done, rat_flip_angle, state);
 
         glfwSwapBuffers(window);                        // Push the newly drawn frame to the screen (double buffering).
         glfwPollEvents();                               // Process pending OS events like mouse movements or 'p' key presses.
