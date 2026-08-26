@@ -25,28 +25,30 @@
 #include <array>
 #include <cmath>
 
-#include "rat.cpp"
+#include "objects.cpp"
 #include "aux_funcs.cpp"
 
 
 typedef struct State { //struct that allows us to not need global variables to use in key_callback().
     float speed_x_rat, speed_y_rat, inc_x_rat, inc_y_rat;
     int rat_flip;
-    float ang_speed_mousetrap, inc_mousetrap;
+    float ang_speed_y_mousetrap, ang_speed_z_mousetrap, inc_y_mousetrap, inc_z_mousetrap;
     float speed_scale_cheese, inc_cheese;
     bool wireframeMode;
 } State;
 
-State* init_state(float inc_x_rat, float inc_y_rat, float inc_mousetrap, float inc_cheese) {
+State* init_state(float inc_x_rat, float inc_y_rat, float inc_y_mousetrap, float inc_z_mousetrap, float inc_cheese) {
     State *aux = (State*)malloc(sizeof(State));
     aux->speed_x_rat = 0.0;
     aux->speed_y_rat = 0.0;
-    aux->ang_speed_mousetrap = 0.0;
+    aux->ang_speed_y_mousetrap = 0.0;
+    aux->ang_speed_y_mousetrap = 0.0;
     aux-> speed_scale_cheese = 0.0;
     aux->wireframeMode = false;
     aux->rat_flip = 0;
     aux->inc_cheese = inc_cheese;
-    aux->inc_mousetrap = inc_mousetrap;
+    aux->inc_y_mousetrap = inc_y_mousetrap;
+    aux->inc_z_mousetrap = inc_z_mousetrap;
     aux->inc_x_rat = inc_x_rat;
     aux->inc_y_rat = inc_y_rat;
     return aux;
@@ -70,11 +72,17 @@ void key_callback(
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);  // Instruct the rasterizer to fill the polygons with color.
     }
 
-    if(key == GLFW_KEY_LEFT) state->speed_x_rat -= state->inc_x_rat;
-    if(key == GLFW_KEY_RIGHT) state->speed_x_rat += state->inc_x_rat;
-    if(key == GLFW_KEY_DOWN) state->speed_y_rat -= state->inc_y_rat;
-    if(key == GLFW_KEY_UP) state->speed_y_rat += state->inc_y_rat;
-    if(key == GLFW_KEY_F) state->rat_flip += 1;
+    if(key == GLFW_KEY_LEFT ) state->speed_x_rat -= state->inc_x_rat; //Gets the press and release of the key. Makes the moviment smoother
+    if(key == GLFW_KEY_RIGHT) state->speed_x_rat += state->inc_x_rat; //Gets the press and release of the key. Makes the moviment smoother
+    if(key == GLFW_KEY_DOWN) state->speed_y_rat -= state->inc_y_rat; //Gets the press and release of the key. Makes the moviment smoother
+    if(key == GLFW_KEY_UP) state->speed_y_rat += state->inc_y_rat; //Gets the press and release of the key. Makes the moviment smoother
+    if(key == GLFW_KEY_F && action == GLFW_PRESS) state->rat_flip += 1;
+
+    if(key == GLFW_KEY_A) state->ang_speed_y_mousetrap -= state->inc_y_mousetrap;
+    if(key == GLFW_KEY_D) state->ang_speed_y_mousetrap += state->inc_y_mousetrap;
+
+    if(key == GLFW_KEY_W) state->ang_speed_z_mousetrap += state->inc_z_mousetrap;
+    if(key == GLFW_KEY_S) state->ang_speed_z_mousetrap -= state->inc_z_mousetrap;
 }
 
 const char* vertexShaderSource =
@@ -100,6 +108,80 @@ const char* fragmentShaderSource =
 //====================================================================================
 //Keep in mind that we must transpose the matrix first before plugging it into a glm::mat4
 
+void draw_table(
+        size_t ini_pos,
+        size_t num,
+        int loc_transform,
+        int loc_color,
+        State *state
+) {
+        glm::mat4 trans = glm::mat4(1.0); //just an identity matrix
+        glUniformMatrix4fv(loc_transform, 1, GL_FALSE, glm::value_ptr(trans));
+        glUniform4f(loc_color, 1.0, 0.0, 0.0, 1.0);
+        glDrawArrays(GL_TRIANGLES, ini_pos/3, num/3);
+}
+
+void draw_mousetrap(
+        size_t ini_pos,
+        size_t num,
+        int loc_transform,
+        int loc_color,
+        float& angle_y,
+        float& angle_z,
+        State *state
+) {
+
+        angle_y += state->ang_speed_y_mousetrap;
+        angle_z += state->ang_speed_z_mousetrap;
+
+        if(angle_z > M_PI) angle_z = M_PI;
+        if(angle_z < 0.0) angle_z = 0.0;
+
+        float cos_y = cos(angle_y);
+        float sin_y = sin(angle_y);
+        glm::mat4 rotation_y = glm::mat4(
+            cos_y, 0.0, - sin_y, 0.0,
+            0.0,   1.0, 0.0,     0.0,
+            sin_y, 0.0, cos_y,   0.0,
+            0.0,   0.0, 0.0,     1.0
+
+        );
+        glm::mat4 trans = rotation_y;
+        glUniformMatrix4fv(loc_transform, 1, GL_FALSE, glm::value_ptr(trans));
+        glUniform4f(loc_color, 0.9, 0.6, 0.0, 1.0);
+        glDrawArrays(GL_TRIANGLES, ini_pos/3, 39);
+        glUniform4f(loc_color, 0.5, 0.5, 0.5, 1.0);
+        glDrawArrays(GL_TRIANGLES, ini_pos/3 + 39, 42);
+
+        float cos_z = cos(angle_z);
+        float sin_z = sin(angle_z);
+
+        glm::mat4 translation_ori = glm::mat4(
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, -0.06, 0.0, 1.0
+        );
+
+        glm::mat4 translation_ori_inv = glm::mat4(
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.06, 0.0, 1.0
+        );
+
+        glm::mat4 rotation_z = glm::mat4(
+            cos_z, sin_z, 0.0, 0.0,
+            -sin_z, cos_z, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0
+        );
+
+        trans = translation_ori_inv * rotation_y * rotation_z * translation_ori;
+        glUniformMatrix4fv(loc_transform, 1, GL_FALSE, glm::value_ptr(trans));
+        glDrawArrays(GL_TRIANGLES, ini_pos/3 + 39 + 42, num/3 - 39 - 42);
+}
+
 
 void draw_rat(
         size_t ini_pos, 
@@ -112,6 +194,9 @@ void draw_rat(
         float& flip_angle, 
         State *state
 ) {
+
+        float scale_fac = 0.03;
+
         //The matrixes we're going to use
         glm::mat4 rotation_z;
         glm::mat4 rotation_x;
@@ -120,13 +205,16 @@ void draw_rat(
 
         if(fabs(state->speed_x_rat) <= state->inc_x_rat * 0.9) state->speed_x_rat = 0.0; //zeroes the speed if is smaller than an increment
         if(fabs(state->speed_y_rat) <= state->inc_y_rat * 0.9) state->speed_y_rat = 0.0; //zeroes the speed if is smaller than an increment
-        if(state->rat_flip == 0) { //if the rat is not ready to flip
-            pos_x += state->speed_x_rat; //updates the position
+        
+        pos_x += state->speed_x_rat; //updates the position
+        
+        if(state->rat_flip == 0) { //if the rat is not flipping, we can update y position normally
+
             pos_y += state->speed_y_rat; //updates the position
         }
         else if(state->rat_flip >= 1){
-            if(pos_y <= 0.5 && !flip_done) pos_y += state->rat_flip * state->inc_y_rat;
-            else if(flip_done) pos_y -= state->rat_flip * state->inc_y_rat;
+            if(pos_y <= 0.5 && !flip_done) pos_y += state->rat_flip * 4 * state->inc_y_rat;
+            else if(flip_done) pos_y -= state->rat_flip * 4 * state->inc_y_rat;
             else flip_angle -= state->rat_flip * 0.04;
         }
         if(flip_angle <= - M_PI * 2) {
@@ -197,9 +285,9 @@ void draw_rat(
 
         //scale the rat
         glm::mat4 scale = glm::mat4(
-            0.03, 0.0,  0.0,   0.0,
-            0.0,  0.03, 0.0,   0.0,
-            0.0,  0.0,  -0.03, 0.0, //TODO: discover why this needs to be negative
+            scale_fac, 0.0,  0.0,   0.0,
+            0.0,  scale_fac, 0.0,   0.0,
+            0.0,  0.0,  scale_fac, 0.0,
             0.0,  0.0,  0.0,   1.0
         );
         //moves the rat to the origin
@@ -214,7 +302,7 @@ void draw_rat(
             1.0,   0.0,  0.0, 0.0,
             0.0,   1.0,  0.0, 0.0,
             0.0,   0.0,  1.0, 0.0,
-            pos_x, pos_y, 0.0, 1.0
+            pos_x, pos_y + 3.0*scale_fac, 0.0, 1.0 //doing this operation in pos_y to make the foot stay in 0.0
         );
         glm::mat4 trans = translate * rot_final * scale * translate_ori;
         glUniformMatrix4fv(loc_transform, 1, GL_FALSE, glm::value_ptr(trans));
@@ -238,11 +326,11 @@ int main() {                                            // Main execution entry 
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // Explicitly disable deprecated legacy functions.
     glfwWindowHint(GLFW_DEPTH_BITS, 24);
 
-    GLFWwindow* window = glfwCreateWindow(800, 800, "Proj 1", NULL, NULL); // Allocate memory and ask the OS for a window.
+    GLFWwindow* window = glfwCreateWindow(800, 800, "transformice", NULL, NULL); // Allocate memory and ask the OS for a window.
     glfwMakeContextCurrent(window);                     // Tell OpenGL that subsequent API calls apply to this specific window.
 
 
-    State *state = init_state(0.001, 0.001, 0.01, 0.001);
+    State *state = init_state(0.001, 0.001, 0.005, 0.008, 0.001);
     glfwSetWindowUserPointer(window, (void*)state);
     glfwSetKeyCallback(window, key_callback);           // Register our custom input function with GLFW's event system.
     gladLoadGL((GLADloadfunc)glfwGetProcAddress); // Initialize GLAD using GLFW's memory pointers to map the OpenGL API.
@@ -268,9 +356,10 @@ int main() {                                            // Main execution entry 
     //====================================================================================
     std::vector<float> vertices;
 
-    size_t ini_rat, num_rat;
+    size_t ini_rat, num_rat, ini_table, num_table, ini_mousetrap, num_mousetrap;
     add_object(get_rat_vec(), vertices, ini_rat, num_rat);
-
+    add_object(get_table_vec(), vertices, ini_table, num_table);
+    add_object(get_mousetrap_vec(), vertices, ini_mousetrap, num_mousetrap);
 
     unsigned int VBO, VAO;                              // Declare handles for managing GPU memory objects.
     glGenVertexArrays(1, &VAO);                         // Generate an ID for our state-tracking object.
@@ -294,6 +383,8 @@ int main() {                                            // Main execution entry 
 
     float pos_x_rat = 0.5, pos_y_rat = 0.0, rat_flip_angle = 0.0;
     bool rat_flip_done = false;
+
+    float angle_y_mousetrap = 0.0, angle_z_mousetrap = 0.0;
     //====================================================================================
     //------------------------------------window loop-------------------------------------
     //====================================================================================
@@ -313,6 +404,8 @@ int main() {                                            // Main execution entry 
 
         draw_rat(ini_rat, num_rat, loc_transform, loc_color, pos_x_rat, pos_y_rat, rat_flip_done, rat_flip_angle, state);
 
+        draw_mousetrap(ini_mousetrap, num_mousetrap, loc_transform, loc_color, angle_y_mousetrap, angle_z_mousetrap, state);
+        draw_table(ini_table, num_table, loc_transform, loc_color, state);
         glfwSwapBuffers(window);                        // Push the newly drawn frame to the screen (double buffering).
         glfwPollEvents();                               // Process pending OS events like mouse movements or 'p' key presses.
     }                                                   // Syntax to close the render loop.
