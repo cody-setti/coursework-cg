@@ -29,16 +29,19 @@
 #include "aux_funcs.cpp"
 
 
-typedef struct State { //struct that allows us to not need global variables to use in key_callback().
-    float speed_x_rat, speed_y_rat, inc_x_rat, inc_y_rat;
-    int rat_flip;
+//Struct that allows us to not need global variables to use in key_callback(). Holds the majority of variable that needs to be updated every iteration of the main while
+typedef struct State { 
+    float speed_x_rat, speed_y_rat, inc_x_rat, inc_y_rat; //speed is the value that is increase in the position. inc is the value that the speed changes every press
+    int rat_flip; //Variable that stores the amount of times the rat has to flip yet.
     float ang_speed_y_mousetrap, ang_speed_z_mousetrap, inc_y_mousetrap, inc_z_mousetrap;
     float speed_scale_cheese, inc_cheese;
-    bool wireframeMode;
+    bool wireframeMode; //See the polygons
 } State;
 
+//Function to instanciate a State variable.
 State* init_state(float inc_x_rat, float inc_y_rat, float inc_y_mousetrap, float inc_z_mousetrap, float inc_cheese) {
     State *aux = (State*)malloc(sizeof(State));
+    //Those are standard
     aux->speed_x_rat = 0.0;
     aux->speed_y_rat = 0.0;
     aux->ang_speed_y_mousetrap = 0.0;
@@ -46,6 +49,7 @@ State* init_state(float inc_x_rat, float inc_y_rat, float inc_y_mousetrap, float
     aux-> speed_scale_cheese = 0.0;
     aux->wireframeMode = false;
     aux->rat_flip = 0;
+    //Should be set according to preference
     aux->inc_cheese = inc_cheese;
     aux->inc_y_mousetrap = inc_y_mousetrap;
     aux->inc_z_mousetrap = inc_z_mousetrap;
@@ -107,6 +111,11 @@ const char* fragmentShaderSource =
 //----------------------------------draw functions------------------------------------
 //====================================================================================
 //Keep in mind that we must transpose the matrix first before plugging it into a glm::mat4
+//We are drawing the vertices of a single buffered vector. 
+// In the glDrawArrays() call, the argument "first" is the position of the first vertex of the object in the buffered vector 
+//I'm calling the buffered vector the "global vector" and the object's vector "object vector"
+// and the argument "count" is the amount of vertices this object have. 
+// The current modelled objects are basically lists of vertices. As each vertice is represented by 3 floats, the amount of vertices is object.size() / 3
 
 void draw_table(
         size_t ini_pos,
@@ -116,27 +125,28 @@ void draw_table(
         State *state
 ) {
         glm::mat4 trans = glm::mat4(1.0); //just an identity matrix
-        glUniformMatrix4fv(loc_transform, 1, GL_FALSE, glm::value_ptr(trans));
-        glUniform4f(loc_color, 1.0, 0.0, 0.0, 1.0);
-        glDrawArrays(GL_TRIANGLES, ini_pos/3, num/3);
+        glUniformMatrix4fv(loc_transform, 1, GL_FALSE, glm::value_ptr(trans)); //Changes the matrix in GPU
+        glUniform4f(loc_color, 1.0, 0.0, 0.0, 1.0); //Color red
+        glDrawArrays(GL_TRIANGLES, ini_pos/3, num/3); //draws on screen
 }
 
 void draw_mousetrap(
-        size_t ini_pos,
-        size_t num,
-        int loc_transform,
-        int loc_color,
-        float& angle_y,
-        float& angle_z,
-        State *state
+        size_t ini_pos, //position of the first vertice of the mousetrap in the global vector
+        size_t num, //Amount of floats to represent the mousetrap
+        int loc_transform, //location of the transformation matrix in GPU
+        int loc_color, //location of the color variable in GPU
+        float& angle_y, // Angle that the mousetrap is currently. Passed as reference to be modified
+        float& angle_z, // Angle that the mousetrap is currently. Passed as reference to be modified
+        State *state //State variable with a lot of things!
 ) {
 
-        angle_y += state->ang_speed_y_mousetrap;
+        angle_y += state->ang_speed_y_mousetrap; //changes the angle
         angle_z += state->ang_speed_z_mousetrap;
 
-        if(angle_z > M_PI) angle_z = M_PI;
+        if(angle_z > M_PI) angle_z = M_PI; //Limits the angle
         if(angle_z < 0.0) angle_z = 0.0;
 
+        //calculate the rotation matrix for the Y-axis
         float cos_y = cos(angle_y);
         float sin_y = sin(angle_y);
         glm::mat4 rotation_y = glm::mat4(
@@ -147,29 +157,34 @@ void draw_mousetrap(
 
         );
         glm::mat4 trans = rotation_y;
+
+        //Here we draw 2 parts of the mousetrap - the base, made of wood and a part that is stuck to the base, that is made of metal
         glUniformMatrix4fv(loc_transform, 1, GL_FALSE, glm::value_ptr(trans));
         glUniform4f(loc_color, 0.9, 0.6, 0.0, 1.0);
         glDrawArrays(GL_TRIANGLES, ini_pos/3, 39);
+        //metal
         glUniform4f(loc_color, 0.5, 0.5, 0.5, 1.0);
         glDrawArrays(GL_TRIANGLES, ini_pos/3 + 39, 42);
 
+        //Rotation transformation for the part that closes
         float cos_z = cos(angle_z);
         float sin_z = sin(angle_z);
 
+        //translate the rotation point to the origin
         glm::mat4 translation_ori = glm::mat4(
             1.0, 0.0, 0.0, 0.0,
             0.0, 1.0, 0.0, 0.0,
             0.0, 0.0, 1.0, 0.0,
             0.0, -0.06, 0.0, 1.0
         );
-
+        //translate back
         glm::mat4 translation_ori_inv = glm::mat4(
             1.0, 0.0, 0.0, 0.0,
             0.0, 1.0, 0.0, 0.0,
             0.0, 0.0, 1.0, 0.0,
             0.0, 0.06, 0.0, 1.0
         );
-
+        //rotation matrix
         glm::mat4 rotation_z = glm::mat4(
             cos_z, sin_z, 0.0, 0.0,
             -sin_z, cos_z, 0.0, 0.0,
@@ -177,6 +192,7 @@ void draw_mousetrap(
             0.0, 0.0, 0.0, 1.0
         );
 
+        //Draw this moving part
         trans = translation_ori_inv * rotation_y * rotation_z * translation_ori;
         glUniformMatrix4fv(loc_transform, 1, GL_FALSE, glm::value_ptr(trans));
         glDrawArrays(GL_TRIANGLES, ini_pos/3 + 39 + 42, num/3 - 39 - 42);
@@ -184,15 +200,15 @@ void draw_mousetrap(
 
 
 void draw_rat(
-        size_t ini_pos, 
-        size_t num, 
-        int loc_transform, 
-        int loc_color, 
-        float& pos_x, 
+        size_t ini_pos,  //position of the first vertice of the rat in the global vector
+        size_t num, //Amount of floats to represent the rat
+        int loc_transform, //same as before
+        int loc_color, //same as before
+        float& pos_x, //Position of the rat. Passed by reference to be editted
         float& pos_y, 
-        bool& flip_done, 
-        float& flip_angle, 
-        State *state
+        bool& flip_done, //Variable that tells the rat to go down after executing a flip
+        float& flip_angle, //Current flip angle
+        State *state //State variable!
 ) {
 
         float scale_fac = 0.03;
@@ -354,9 +370,12 @@ int main() {                                            // Main execution entry 
     //====================================================================================
     //---------------------------vertex vector--------------------------------------------
     //====================================================================================
+    //Global vector
     std::vector<float> vertices;
 
+    //initial position in the global vector and amount of floats of each object
     size_t ini_rat, num_rat, ini_table, num_table, ini_mousetrap, num_mousetrap;
+    //add objects to global vector
     add_object(get_rat_vec(), vertices, ini_rat, num_rat);
     add_object(get_table_vec(), vertices, ini_table, num_table);
     add_object(get_mousetrap_vec(), vertices, ini_mousetrap, num_mousetrap);
@@ -373,14 +392,14 @@ int main() {                                            // Main execution entry 
     glVertexAttribPointer(loc_vertex, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0); // Tell OpenGL how to extract the X,Y positions from the buffer.
     glEnableVertexAttribArray(loc_vertex);                       // Explicitly turn on the position attribute pipeline (location 0).
 
-    int loc_color = glGetUniformLocation(shaderProgram, "color");
+    int loc_color = glGetUniformLocation(shaderProgram, "color"); // Find where the color variable lives in GPU memory.
 
-
+    //For calculation of which fragment is shown
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
-
-
+    
+    //Variables of positions and angles. This should be in the state variable!! My Bad
     float pos_x_rat = 0.5, pos_y_rat = 0.0, rat_flip_angle = 0.0;
     bool rat_flip_done = false;
 
@@ -392,7 +411,7 @@ int main() {                                            // Main execution entry 
     while (!glfwWindowShouldClose(window)) {            // Keep the application running until an exit signal is received.
 
 
-        glClearColor(0.0f, 1.0f, 1.0f, 1.0f);           // Define the default background color for the window.
+        glClearColor(0.8f, 0.74f, 0.83f, 1.0f);           // Define the default background color for the window.
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);                   // Wipe the previous frame's pixels, preventing visual trailing.
 
         glUseProgram(shaderProgram);                    // Instruct the GPU to use our specific custom shader pipeline.

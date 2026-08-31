@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <vector>
 
+//Used in the function below
 std::array<float, 3> sphere_to_cartesian(float u, float v, float r)
 {
     float x = r * std::sin(v) * std::cos(u);
@@ -12,6 +13,7 @@ std::array<float, 3> sphere_to_cartesian(float u, float v, float r)
     return {x, y, z};
 }
 
+//Get the vertices (To be drawn with GL_TRIANGLES) of a sphere centered at origin.
 std::vector<float> sphere_vertex(float r, int num_sectors, int num_stacks) {
     float sector_step = (2 * M_PI) / num_sectors;
     float stack_step = M_PI / num_stacks;
@@ -48,13 +50,14 @@ std::vector<float> sphere_vertex(float r, int num_sectors, int num_stacks) {
     return vertex_list;
 }
 
-
+//Concatenate 2 std::vectors at the one that is passed as the first argument
 template <typename T>
 void concat(std::vector<T>& a, const std::vector<T>& b)
 {
     a.insert(a.end(), b.begin(), b.end());
 }
 
+//Given a global vector "vertex" and a object vector "object", adds object to vertex and returns the initial position of the object and the number of floats
 template <typename T>
 void add_object(const std::vector<T>& object, std::vector<T>& vertex, size_t& ini_pos, size_t& num_added) {
     num_added =object.size();
