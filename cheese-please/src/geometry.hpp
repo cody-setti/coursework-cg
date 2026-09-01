@@ -3,38 +3,38 @@
 // --- INCLUSIONS ---
 #include <glad/gl.h>    // For the GLint / GLsizei types that glDrawArrays expects.
 #include <glm/glm.hpp>  // For `vec3` and `mat4`.
-#include <vector>
+#include <vector>       // Our `Mesh` is a vector of vertices.
+                        // What exactly is a "vertex"? See below!
 
 
-// --- WHAT THE GPU WILL BE HANDED ---
-// One vertex, exactly as it sits in memory: six floats, position then colour.
-// The two attributes are INTERLEAVED (xyzrgb xyzrgb xyzrgb ...) rather than stored
-// in two separate blocks, because a vertex is fetched as a unit and neighbours in
-// memory are neighbours in the cache.
+// --- DATA STRUCTURES ---
+// Each vertex of each object in this project is composed by two glm 3D vectors.
+// The first, stores the vertex's position in 3D space.
+// The second, each color channel value (red, green and blue).
 //
-// Colour lives here, per vertex, instead of in a `uniform` set before each draw
-// call. That one decision is what lets a whole object be drawn with a single
-// glDrawArrays: an object no longer has to be sliced up at hardcoded vertex offsets
-// just because its nose is a different colour from its back.
+// This storage method is called INTERLEAVED, because in a list of vertices,
+// positional data will be interleaved with color data!
 struct Vertex {
-	glm::vec3 position;  // attribute 0
-	glm::vec3 color;     // attribute 1  (RGB, each channel in [0, 1])
+	glm::vec3 position;  // attribute 0.
+	glm::vec3 color;     // attribute 1.
 };
 
-// A bag of triangles: every three vertices in a row form one, because everything
-// here is drawn with GL_TRIANGLES.
-using Mesh = std::vector<Vertex>;
+// std::vector<T> isn't a mathematical vector. It is simply an array of
+// type T variables of DYNAMIC length.
+// The keyword `using` permits us to alias `std::vector<Vertex>` as `Mesh`.
+// A briefer and semantically meaningful name.
+// Therefore, a `Mesh` variable isn't anything scary. Just a (potentially) long
+// list of vertices.
+using Mesh = std::vector<Vertex>;  // NOTE: EVERY THREE VERTICES IN A ROW FORM ONE TRIANGLE!
 
-// A bookmark into the one big buffer that holds the whole scene: where a part
-// starts and how many vertices it runs for. Precisely the two arguments that
-// glDrawArrays asks for, which is why nothing else needs to be remembered.
-//
-// A Piece is the unit of INDEPENDENT MOVEMENT, not the unit of colour. The
-// mousetrap is two pieces (its body and its hammer, which swings on its own hinge)
-// while the two-tone rat is a single one.
+// A `Piece` is the unit of INDEPENDENT MOVEMENT.
+// We need to define this `struct` because of a SINGLE ONE of our objects:
+// our mousetrap! It has two pieces: its body and its hammer.
+// The hammer is able to swing on its own hinge, meanwhile the body stays put.
+// All other objects are composed of a single `Piece`!
 struct Piece {
-	GLint   first;  // index of this part's first vertex in the shared buffer
-	GLsizei count;  // how many vertices belong to it
+	GLint   first;  // index of this part's first vertex in the shared buffer.
+	GLsizei count;  // how many vertices belong to it.
 };
 
 
@@ -79,19 +79,22 @@ struct ProfilePoint {
 	glm::vec3 color;
 };
 
+using Profile = std::vector<ProfilePoint>;
+
+
 // Spin a silhouette around the Y axis to make a solid of revolution: the oldest trick
 // in the potter's book, and the reason a wine glass takes eight numbers to describe
 // instead of two hundred triangles. `segments` is how many flat facets stand in for
 // the circle -- more of them is rounder and slower, and few of them on purpose is what
 // gives this scene its faceted look.
-Mesh revolve(const std::vector<ProfilePoint>& profile, int segments);
+Mesh revolve(const Profile& profile, int segments);
 
-// The same, but stopping short: `sweep` is how far round to go. A full turn (2*pi)
+// The same, but stopping short: `sweep` is how far round to go. A full turn (tau)
 // gives a closed solid, and anything less leaves a wedge missing, the way a slice cut
 // from a cheese leaves a notch. The two flat faces the cut exposes are filled in and
 // painted `cut`, since they are the inside of the object and would not be the same
 // colour as its outside.
-Mesh revolve(const std::vector<ProfilePoint>& profile, int segments,
+Mesh revolve(const Profile& profile, int segments,
              float sweep, const glm::vec3& cut);
 
 

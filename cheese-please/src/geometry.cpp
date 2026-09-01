@@ -3,29 +3,10 @@
 
 #include "primary_transforms.hpp"  // For kTau, when swinging a profile around the axis.
 
+#include <cassert>                 // For the coplanarity check in quad().
 #include <glm/glm.hpp>             // For `vec3`, `vec4` and `mat4`.
-#include <cmath>                   // For std::cos and std::sin.
+#include <cmath>                   // For std::cos, std::sin and std::fabs.
 #include <vector>
-
-
-namespace {
-
-// Two triangles making up one flat four-sided face. Every primitive below is built
-// out of this, which is why none of them has to spell out a triangle by hand.
-void quad(Mesh& into,
-          const glm::vec3& a, const glm::vec3& b,
-          const glm::vec3& c, const glm::vec3& d,
-          const glm::vec3& color) {
-	into.push_back(Vertex{ a, color });
-	into.push_back(Vertex{ b, color });
-	into.push_back(Vertex{ c, color });
-
-	into.push_back(Vertex{ a, color });
-	into.push_back(Vertex{ c, color });
-	into.push_back(Vertex{ d, color });
-}
-
-}  // namespace
 
 
 // --- PUTTING MESHES TOGETHER ---
@@ -62,15 +43,54 @@ void append(Mesh& into, const Mesh& part, const glm::mat4& placement) {
 
 
 // --- PRIMITIVES ---
+namespace {  // An ANONYMOUS namespace. Everything inside it is private to this file.
+	void quad(  // Build a quadrilateral surface.
+	            // This function is auxiliary to `box()`.
+		// The `Mesh` to append to. A reference, so the caller's mesh grows.
+		Mesh& into,
+		// Corners of the four-sided surface, in order around its edge.
+		const glm::vec3& a,
+		const glm::vec3& b,
+		const glm::vec3& c,
+		const glm::vec3& d,
+		// The surface's color.
+		const glm::vec3& color
+	) {
+		// ATTENTION: If a, b, c and d aren't COPLANAR, the surface geometry depends on the split!
+		// split a–c:  a ______ b        split b–d:  a _______ b
+		//             |ridge  /|                    |\  valley|
+		//             |     /  |                    |  \      |
+		//             d_______ c                    d _______ c
+		// Therefore...
+		// Assert that the volume of the tetrahedron spanned by vertices a,b,c and d is practically zero.
+		// Why? That is mathematically equivalent to them being COPLANAR.
+		assert(std::fabs(glm::dot(d - a, glm::cross(b - a, c - a))) < 1e-4f
+		       && "quad(): the four corners are not coplanar");
+	
+		// Make the first triangular surface.
+		into.push_back(Vertex{ a, color });
+		into.push_back(Vertex{ b, color });
+		into.push_back(Vertex{ c, color });
+	
+		// Make the second triangular surface.
+		into.push_back(Vertex{ a, color });
+		into.push_back(Vertex{ c, color });
+		into.push_back(Vertex{ d, color });
+	}
+}
 
-// A box one unit along each edge, centred on the origin, so that scaling it by
-// (w, h, d) gives a box of exactly those dimensions and translating it by p puts its
-// middle exactly at p. Corners are named from the box's own point of view: the top
-// face is the one at +Y.
-Mesh box(const glm::vec3& top, const glm::vec3& side, const glm::vec3& base) {
-	const float h = 0.5f;  // half an edge, so the whole edge measures 1
-	Mesh mesh;
-	mesh.reserve(36);
+
+Mesh box(  // Returns a `Mesh` describing a unit box centered at the origin.
+	// The box's top, sides and base are given distinct colors,
+	// to create the ILLUSION of lighting.
+	const glm::vec3& top ,
+	const glm::vec3& side,
+	const glm::vec3& base
+) {
+	const float h = 0.5f;  // half an edge, so the whole edge measures 1.
+	Mesh mesh;             // initialize the `Mesh` that will store the unit box.
+	mesh.reserve(36);      // 6 faces of 6* vertices each = 36 vertices.
+	                       // *: 2 of the 4 vertices are repeated when using `quad`!
 
 	quad(mesh, {-h, -h,  h}, { h, -h,  h}, { h,  h,  h}, {-h,  h,  h}, side);  // front  (+Z)
 	quad(mesh, { h, -h, -h}, {-h, -h, -h}, {-h,  h, -h}, { h,  h, -h}, side);  // back   (-Z)
@@ -82,26 +102,55 @@ Mesh box(const glm::vec3& top, const glm::vec3& side, const glm::vec3& base) {
 	return mesh;
 }
 
-
-Mesh revolve(const std::vector<ProfilePoint>& profile, int segments) {
+// BEWARE: Cool function OVERLOADING ahead!
+//         Which function to use?! Picked at compile time by looking at the passed arguments!
+Mesh revolve(
+	const Profile& profile,
+	int segments
+) {
 	// A whole turn closes the solid on itself, so there is no cut and no colour for one.
-	return revolve(profile, segments, kTau, glm::vec3(0.0f));
+	return revolve(
+		profile        ,
+		segments       ,
+		kTau           ,  // A complete revolution.
+		glm::vec3(0.0f)   // No cut, so the value of this color is irrelevant.
+	);
 }
 
 
-Mesh revolve(const std::vector<ProfilePoint>& profile, int segments,
-             float sweep, const glm::vec3& cut) {
-	Mesh mesh;
-	if (profile.size() < 2 || segments < 3) return mesh;
-
+namespace {  // Another ANONYMOUS namespace: these two helpers serve `revolve()` alone.
 	// Where a profile point lands once it has been swung `angle` radians around the
 	// Y axis: `radius` measures outwards from the axis, `height` along it.
-	auto point_at = [](const ProfilePoint& point, float angle) {
-		return glm::vec3(point.radius * std::cos(angle), point.height, point.radius * std::sin(angle));
-	};
-	auto on_ring = [&point_at](const ProfilePoint& point, float angle) {
-		return Vertex{ point_at(point, angle), point.color };
-	};
+	glm::vec3 point_at(const ProfilePoint& point, float angle) {
+		return glm::vec3(
+			point.radius * std::cos(angle),
+			point.height                  ,
+			point.radius * std::sin(angle)
+		);
+	}
+
+	// The same, dressed up as a finished `Vertex` in the profile point's own color.
+	Vertex on_ring(const ProfilePoint& point, float angle) {
+		return Vertex{
+			point_at(point, angle),
+			point.color
+		};
+	}
+}
+
+
+Mesh revolve(
+	const Profile& profile,
+	int segments          ,
+	float sweep           ,  // how far round to go, in radians
+	const glm::vec3& cut     // color of the faces the missing wedge exposed.
+	                         // This creates the ILLUSION of lighting and/or depth.
+) {
+	Mesh mesh;
+	// GUARD CLAUSE: Revolving a single `ProfilePoint` would produce a circular curve, not a surface!
+	//               Try approximating a circle with two segments... impossible!
+	//               At the very least we approximate one by a triangle (3 segments).
+	if (profile.size() <= 1 || segments <= 2) return mesh;
 
 	// --- THE CURVED SURFACE ---
 	for (int segment = 0; segment < segments; ++segment) {
