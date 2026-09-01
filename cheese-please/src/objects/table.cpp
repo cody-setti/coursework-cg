@@ -2,9 +2,10 @@
 #include "objects/objects.hpp"
 #include "objects/palette.hpp"
 
-#include "transform.hpp"  // The table is assembled out of boxes carried into place.
+#include "primary_transforms.hpp"  // The table is assembled out of boxes carried into place.
 
-#include <cmath>          // For std::atan2.
+#include <glm/glm.hpp>             // For `vec2` and glm::length.
+#include <cmath>                   // For std trigonometric functions.
 
 
 namespace {
@@ -13,15 +14,15 @@ namespace {
 // The top surface is the plane y = 0. That is the single most useful fact about this
 // object: everything else in the scene is placed at y = 0 and is therefore standing
 // on the table without any further arithmetic. The rest of the table hangs below.
-constexpr float kHalfWidth = 1.20f;   // out to the left and right edges. A long refectory
+constexpr float kHalfWidth =  1.00f;  // out to the left and right edges. A long refectory
                                       // table: half as wide again as it once was, which is
                                       // what gives the five objects room to stand apart
-constexpr float kHalfDepth = 0.40f;   // out to the near and far edges
-constexpr float kThickness = 0.06f;   // how thick the top slab is
+constexpr float kHalfDepth =  0.80f;  // out to the near and far edges
+constexpr float kThickness =  0.06f;  // how thick the top slab is
 constexpr float kFloor     = -0.56f;  // where the feet of the legs reach
-constexpr float kFrameInset= 0.34f;   // how far in from the edges the leg frames stand
-constexpr float kTimber    = 0.055f;  // how stout those timbers are
-constexpr float kSpread    = 0.95f;   // how far apart the feet of one X stand
+constexpr float kFrameInset=  0.34f;  // how far in from the edges the leg frames stand
+constexpr float kTimber    =  0.05f;  // how stout those timbers are
+constexpr float kSpread    =  0.95f;  // how far apart the feet of one X stand
 
 // One timber running from `a` to `b` in the XY plane, standing at depth `z`.
 //

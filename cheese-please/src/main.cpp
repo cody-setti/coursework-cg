@@ -19,11 +19,11 @@
 //    Esc      quit
 //
 //  WHERE EVERYTHING LIVES
-//    transform.hpp  the primary geometric transformations, written out by hand
-//    geometry.*     what a vertex and a mesh are, and the primitives to build from
-//    objects/       one file per object, and the palette they are painted with
-//    scene.*        the state of the scene, the keyboard, and one matrix per object
-//    main.cpp       this file: the window, the GPU, and the loop that ties it together
+//    primary_transforms.hpp  the primary geometric transformations, written out by hand
+//    geometry.*              what a vertex and a mesh are, and the primitives to build from
+//    objects/                one file per object, and the palette they are painted with
+//    scene.*                 the state of the scene, the keyboard, and one matrix per object
+//    main.cpp                this file: the window, the GPU, and the loop that ties it together
 //
 //  There is deliberately no model, view or projection matrix anywhere in the
 //  project, and no camera: nothing here has an eye position, a target or an up
@@ -51,8 +51,9 @@
 #include <glm/gtc/type_ptr.hpp>      // GTC = GLM Template Core.
                                      // Convert C++ GLM matrix objects into flat memory
                                      // arrays for OpenGL.
-                                     // (The matrices themselves are built in transform.hpp,
-                                     //  so none of GLM's transformation helpers are needed.)
+                                     // (The matrices themselves are built in
+                                     //  primary_transforms.hpp, so none of GLM's
+                                     //  transformation helpers are needed.)
 
 #include <algorithm>                 // For std::min, to keep one slow frame from
                                      // teleporting the rat across the table.

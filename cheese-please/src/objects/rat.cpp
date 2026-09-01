@@ -2,7 +2,9 @@
 #include "objects/objects.hpp"
 #include "objects/palette.hpp"
 
-#include "transform.hpp"  // The two corrections build_rat applies before handing the mesh over.
+#include "primary_transforms.hpp"  // The two corrections build_rat applies before handing the mesh over.
+
+#include <vector>
 
 
 namespace {

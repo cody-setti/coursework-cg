@@ -2,6 +2,8 @@
 #include "objects/objects.hpp"
 #include "objects/palette.hpp"
 
+#include <vector>
+
 
 namespace {
 

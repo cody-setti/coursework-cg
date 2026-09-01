@@ -2,7 +2,9 @@
 #include "objects/objects.hpp"
 #include "objects/palette.hpp"
 
-#include "transform.hpp"
+#include "primary_transforms.hpp"
+
+#include <vector>
 
 
 namespace {
@@ -70,7 +72,7 @@ void hole(Mesh& into, CutFace face, float x, float y, float radius) {
 		  rotation_y(angle)                      // turn to the cut face this hole belongs to,
 		* translation(x, y, facing * 0.001f)     // stand a hair proud of it so the two surfaces
 		                                         // do not flicker against each other,
-		* rotation_x(facing * kPi * 0.5f)        // tip the disc up to face the same way it does,
+		* rotation_x(facing * kTau * 0.25f)      // tip the disc up to face the same way it does,
 		* scaling(radius, 1.0f, radius)          // and size it. The disc lies in the XZ plane,
 	);                                        // so Y is its thickness and goes untouched.
 }

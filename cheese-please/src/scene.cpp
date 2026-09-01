@@ -1,11 +1,12 @@
 // --- INCLUSIONS ---
 #include "scene.hpp"
 
-#include "objects/objects.hpp"  // The five meshes.
-#include "transform.hpp"        // The primary transformations every matrix here is built from.
+#include "objects/objects.hpp"     // The five meshes.
+#include "primary_transforms.hpp"  // The primary transformations every matrix here is built from.
 
-#include <algorithm>            // For std::clamp and std::min.
-#include <cmath>                // For std::atan2.
+#include <glm/glm.hpp>             // For `vec2`, `mat4` and glm::normalize.
+#include <algorithm>               // For std::clamp and std::min.
+#include <cmath>                   // For std::atan2.
 
 
 namespace {
@@ -167,7 +168,7 @@ void update(Scene& scene, GLFWwindow* window, float seconds) {
 
 	// Shut flat against the base at 0, standing straight up and over at half a turn.
 	// Past either end the hammer would swing down through its own base.
-	scene.hammer_angle = std::clamp(scene.hammer_angle, 0.0f, kPi);
+	scene.hammer_angle = std::clamp(scene.hammer_angle, 0.0f, kTau * 0.5f);
 
 	// --- THE CHEESE: SCALE FROM THE KEYBOARD (requirements 4 and 6) ---
 	// How big a piece of cheese to leave out as bait. A crumb is safer; a whole wedge
@@ -190,7 +191,7 @@ void update(Scene& scene, GLFWwindow* window, float seconds) {
 	// The turn may run round and round for as long as the key is held, so it is wrapped
 	// back into a single revolution. Nothing on screen changes; it just stops the number
 	// growing without bound, and with it the gaps between the floats near it.
-	scene.table_turn = std::fmod(scene.table_turn, 2.0f * kPi);
+	scene.table_turn = std::fmod(scene.table_turn, kTau);
 }
 
 
@@ -234,8 +235,8 @@ void key_callback(
 
 // --- ONE TRANSFORMATION MATRIX PER OBJECT (requirement 3) ---
 // Each function below builds one object's matrix out of nothing but the primary
-// transformations from transform.hpp. They are the heart of the project, so they are
-// gathered here rather than scattered through the drawing code.
+// transformations from primary_transforms.hpp. They are the heart of the project,
+// so they are gathered here rather than scattered through the drawing code.
 //
 // Every product reads RIGHT TO LEFT: the rightmost matrix is applied to the vertex
 // first. And every object that stands on the table begins with the table's own
@@ -278,7 +279,7 @@ glm::mat4 rat_transform(const Scene& scene) {
 	// The somersault is applied BEFORE the yaw (it is further right in the product),
 	// so it happens in the rat's own frame: whichever way the rat has turned to face,
 	// it still goes over its own nose rather than sideways.
-	const float somersault = airborne ? 2.0f * kPi * scene.flip : 0.0f;
+	const float somersault = airborne ? kTau * scene.flip : 0.0f;
 
 	return table_transform(scene)
 	     * translation(scene.rat_position.x, height, scene.rat_position.y)

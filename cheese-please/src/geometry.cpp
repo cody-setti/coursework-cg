@@ -1,9 +1,11 @@
 // --- INCLUSIONS ---
 #include "geometry.hpp"
 
-#include "transform.hpp"  // For kPi, when swinging a profile around the axis.
+#include "primary_transforms.hpp"  // For kTau, when swinging a profile around the axis.
 
-#include <cmath>          // For std::cos and std::sin.
+#include <glm/glm.hpp>             // For `vec3`, `vec4` and `mat4`.
+#include <cmath>                   // For std::cos and std::sin.
+#include <vector>
 
 
 namespace {
@@ -83,7 +85,7 @@ Mesh box(const glm::vec3& top, const glm::vec3& side, const glm::vec3& base) {
 
 Mesh revolve(const std::vector<ProfilePoint>& profile, int segments) {
 	// A whole turn closes the solid on itself, so there is no cut and no colour for one.
-	return revolve(profile, segments, 2.0f * kPi, glm::vec3(0.0f));
+	return revolve(profile, segments, kTau, glm::vec3(0.0f));
 }
 
 
@@ -137,7 +139,7 @@ Mesh revolve(const std::vector<ProfilePoint>& profile, int segments,
 	// end of the arc. Each is the profile itself, closed back on the axis, filled in
 	// by a fan of triangles from its first point, with the one proviso that the profile
 	// has no dents in it.
-	if (sweep < 2.0f * kPi - 0.0001f) {
+	if (sweep < kTau - 0.0001f) {
 		for (std::size_t i = 1; i + 1 < profile.size(); ++i) {
 			mesh.push_back(Vertex{ point_at(profile[0]    , 0.0f), cut });
 			mesh.push_back(Vertex{ point_at(profile[i + 1], 0.0f), cut });
