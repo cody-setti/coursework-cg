@@ -7,7 +7,7 @@
                         // What exactly is a "vertex"? See below!
 
 
-// --- DATA STRUCTURES ---
+// --- VERTEX & MESH STRUCTURE ---
 // Each vertex of each object in this project is composed by two glm 3D vectors.
 // The first, stores the vertex's position in 3D space.
 // The second, each color channel value (red, green and blue).
@@ -39,7 +39,6 @@ struct Piece {
 
 
 // --- PUTTING MESHES TOGETHER ---
-
 // Paint a hand-authored table of raw x,y,z floats in one flat colour and append the
 // result to `into`. The rat and the mousetrap are modelled this way, vertex by
 // vertex; the tables are positions only, and this is what dresses them.
@@ -55,24 +54,24 @@ void append(Mesh& into, const Mesh& part);
 void append(Mesh& into, const Mesh& part, const glm::mat4& placement);
 
 
-// --- PRIMITIVES ---
-// Simple solids to compose objects out of. Every one of them is built at the origin,
-// so that the matrix which places it is also the matrix that decides how big it is
-// and which way it points.
-//
-// A NOTE ON THE THREE COLOURS BELOW. There is no lighting in this project --
-// requirement 10 rules it out -- so a solid painted one flat colour arrives on
-// screen as a plain silhouette: the top face and the side face of a box meet at an
-// invisible seam and the box reads as a hexagon. The cure is to hand the top, the
-// sides and the underside slightly different shades of the same colour, chosen by
-// hand. Nothing is being computed from a light source; the shading is simply painted
-// on, the way it would be on a wooden toy.
-Mesh box(const glm::vec3& top, const glm::vec3& side, const glm::vec3& base);
+// --- SIMPLE OBJECTS GENERATION ---
+// Simple solids to compose objects out of.
 
-// One point of a silhouette to be spun around the Y axis: how far out from the axis,
-// how far up it, and what colour the surface is there. The colour blends smoothly
-// into the next point's, which is how the wine in the glass fades into the glass
-// above it without a second mesh.
+// Create a unit cube centered at the origin
+Mesh box(
+	const glm::vec3& top ,
+	const glm::vec3& side,
+	const glm::vec3& base
+);
+
+
+// SOLID OF REVOLUTION
+// First, to new types must be created.
+// In reverse order:
+//	`Profile` is the set of points of a flat surface we want to revolve around the Y axis.
+//	`ProfilePoint` is a single point defining such surface.
+// NOTE: `ProfilePoint`s are NOT `Vertex`s. They are all assumed coplanar. Therefore, they
+//       require only two positional variables, `radius` and `height`.
 struct ProfilePoint {
 	float     radius;
 	float     height;
