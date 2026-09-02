@@ -6,14 +6,6 @@
 
 
 namespace {
-
-// --- THE MOUSETRAP ---
-// Modelled by hand, already at the size it appears on the table and straddling the
-// origin, so that turning it about the origin turns it about its own middle.
-//
-// Three tables rather than two, because the hammer has to be told apart not only by
-// its colour but by the fact that it swings: it is handed back as a mesh of its own
-// so that it can carry its own transformation matrix.
 const std::vector<float> kTrapWood = {
 		/* Base */
 	0.15, 0.0, -0.1,
@@ -69,7 +61,6 @@ const std::vector<float> kTrapWood = {
 	-0.15, 0.05, -0.1,
 };
 
-// The staple the hammer hinges on, and the trigger bar that holds it open.
 const std::vector<float> kTrapMetal = {
 		/* metal part */
 	-0.01, 0.05, 0.1,
@@ -130,9 +121,6 @@ const std::vector<float> kTrapMetal = {
 	0.15, 0.06, 0.0,
 };
 
-// The hammer: the bar that swings down. Its hinge lies along y = 0.06 -- the middle of
-// the 0.05 to 0.07 band the bar occupies -- which is the height objects.hpp publishes as
-// kTrapHinge and trap_hammer_transform in scene.cpp rotates about.
 const std::vector<float> kTrapHammer = {
 	//metal moving part (sides)
 	-0.01, 0.05, -0.1,
@@ -257,7 +245,7 @@ const std::vector<float> kTrapHammer = {
 
 Mousetrap build_mousetrap() {
 	Mousetrap trap;
-	append(trap.body  , kTrapWood  , kWood );
+	append(trap.body  , kTrapWood  , kTrap );
 	append(trap.body  , kTrapMetal , kSteel);
 	append(trap.hammer, kTrapHammer, kSteel);
 	return trap;

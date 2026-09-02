@@ -1,12 +1,6 @@
 // =============================================================================
 //  CHEESE, PLEASE  --  Computacao Grafica, Projeto 1
 //
-//  A rat raids a kitchen table at the wrong moment. Five objects share the scene --
-//  the table, the rat, a mousetrap, the wheel of cheese baiting it, and somebody's
-//  abandoned glass of wine -- each modelled by hand out of simple primitives, each
-//  carrying its own transformation matrix, and three of them answering to the
-//  keyboard.
-//
 //  CONTROLS
 //    arrows   walk the rat around the tabletop
 //    F        leap, with a full forward somersault on the way over
@@ -17,20 +11,6 @@
 //    T / G    tip the table towards Top or Ground
 //    P        show or hide the polygon mesh
 //    Esc      quit
-//
-//  WHERE EVERYTHING LIVES
-//    primary_transforms.hpp  the primary geometric transformations, written out by hand
-//    geometry.*              what a vertex and a mesh are, and the primitives to build from
-//    objects/                one file per object, and the palette they are painted with
-//    scene.*                 the state of the scene, the keyboard, and one matrix per object
-//    main.cpp                this file: the window, the GPU, and the loop that ties it together
-//
-//  There is deliberately no model, view or projection matrix anywhere in the
-//  project, and no camera: nothing here has an eye position, a target or an up
-//  vector. What Q, E, T and G turn is the TABLE -- an object, carrying a rotation
-//  matrix of its own, which is exactly what requirements 4 and 7 ask for -- and every
-//  object standing on the table is built on top of the table's matrix, so the whole
-//  tableful comes round together. See table_transform in scene.cpp.
 // =============================================================================
 
 // --- INCLUSIONS ---
@@ -66,9 +46,6 @@
 
 
 // --- HANDLE DRIVER ERRORS ---
-// The whole signature is dictated by OpenGL (the GLDEBUGPROC type), so several
-// parameters arrive whether we want them or not. `[[maybe_unused]]` says "yes, I know,
-// I am not reading this one" and keeps the compiler from warning about it.
 void APIENTRY debug_callback(
 	[[maybe_unused]] GLenum        source   ,  // Who raised the callback (the API, the shader compiler, the window system, ...).
 	[[maybe_unused]] GLenum        type     ,  // What kind it is (error, deprecation, performance warning, ...).
@@ -84,14 +61,6 @@ void APIENTRY debug_callback(
 
 
 // --- KEEP THE PICTURE SQUARE, WHATEVER SHAPE THE WINDOW IS ---
-// Fires whenever the window is resized, and once by hand at start-up.
-//
-// Coordinates run from -1 to +1 across the drawing rectangle no matter what shape it
-// is, so a rectangle twice as wide as it is tall stretches the scene sideways. The
-// usual cure is a projection matrix, and requirement 10 forbids exactly that. So
-// instead we draw into the largest square that fits, centred, and let the strips left
-// over take the background colour: glClear ignores the viewport and paints the whole
-// window, so they match for free.
 void framebuffer_size_callback([[maybe_unused]] GLFWwindow* window, int width, int height) {
 	const int side = std::min(width, height);
 	glViewport(
@@ -174,11 +143,6 @@ unsigned int compile_shader(
 			infoLog   // Variable in which the error message is injected.
 		);
 		std::cerr << "Shader failed:\n" << infoLog << std::endl;
-
-		// ... and say so in the return value. Carrying on with a shader that did not
-		// compile turns a precise, readable driver message into a blank window several
-		// steps later: the least informative symptom of the most informative failure.
-		// Zero is never a valid shader name, so it is free to mean "there isn't one".
 		glDeleteShader(shader);
 		return 0;
 	}
@@ -214,12 +178,7 @@ int main() {
 		return -1;
 	}
 
-	// Ask to stay square as the user drags the corner, so that no space is wasted on
-	// the letterbox strips framebuffer_size_callback would otherwise leave. It is only
-	// a request: a tiling window manager will size the window to suit its layout and
-	// ignore this entirely, which is precisely why the viewport does not rely on it.
 	glfwSetWindowAspectRatio(window, 1, 1);
-
 	glfwMakeContextCurrent(window);  // Every later gl* call now talks to this window's context.
 	glfwSwapInterval(1);             // Show a new frame only when the monitor is ready for one:
 	                                 // no tearing, and no redrawing three objects 5000 times a second.
@@ -340,16 +299,9 @@ int main() {
 	glfwSetKeyCallback(window, key_callback);  // Register our custom input function with GLFW's event system.
 
 	// --- STANDING GPU STATE ---
-	glEnable(GL_DEPTH_TEST);  // Keep, for each pixel, only the surface nearest the viewer. Without this
-	glDepthFunc(GL_LESS);     // the rat's far side draws over its near side, depending on nothing more
-	                          // principled than the order the triangles were typed in.
-	// Note for whoever reads this next: do NOT switch on back-face culling as an
-	// optimisation. These meshes were modelled by hand and their triangles are not
-	// consistently wound, so the GPU cannot tell a back face from a front one --
-	// culling punches holes in the rat.
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS); 
 
-	// Find the opaque number the linker assigned to the matrix variable stored in the GPU.
-	// The answer cannot change while the program is linked, so we ask once instead of every frame.
 	GLint transformLoc = glGetUniformLocation(shaderProgram, "transform");
 
 	// Draw one piece of the scene under its own transformation matrix.
@@ -371,12 +323,9 @@ int main() {
 	// --- RENDER LOOP ---
 	float lastTime = static_cast<float>(glfwGetTime());
 	while (!glfwWindowShouldClose(window)) {   // Keep the application running until an exit signal is received.
-		// HOW LONG WAS THE LAST FRAME?
-		// Every speed in scene.cpp is quoted per second and multiplied by this, so the
-		// scene moves at the same pace on a fast machine and a slow one.
 		const float now     = static_cast<float>(glfwGetTime());
-		const float seconds = std::min(now - lastTime, 0.1f);  // Capped, so that a frame lost to
-		lastTime            = now;                             // a window drag doesn't teleport the rat.
+		const float seconds = std::min(now - lastTime, 0.1f);
+		lastTime            = now;
 
 		update(scene, window, seconds);
 
@@ -397,10 +346,6 @@ int main() {
 		glUseProgram(shaderProgram);  // Instruct the GPU to use our specific custom shader program.
 		glBindVertexArray(VAO);       // Recall all the data mapping configurations we set up earlier.
 
-		// Each part carries the matrix function that places it, so this loop needs to
-		// know nothing at all about what happens to be standing on the table. The order
-		// does not matter either: the depth test decides which surface ends up in front,
-		// not the sequence the draw calls were made in.
 		for (const Part& part : scene.parts)
 			draw(part.piece, part.transform(scene));
 

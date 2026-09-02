@@ -39,18 +39,8 @@ struct Piece {
 
 
 // --- PUTTING MESHES TOGETHER ---
-// Paint a hand-authored table of raw x,y,z floats in one flat colour and append the
-// result to `into`. The rat and the mousetrap are modelled this way, vertex by
-// vertex; the tables are positions only, and this is what dresses them.
 void append(Mesh& into, const std::vector<float>& positions, const glm::vec3& color);
-
-// Add one mesh to another, as it is ...
 void append(Mesh& into, const Mesh& part);
-
-// ... or after moving it into place first. This second form is how an object gets
-// built out of primitives: `box` and friends each produce their shape at the origin
-// at a convenient size, and a matrix carries the copy to where it belongs. It runs
-// once, at start-up, so a hundred boxes cost nothing at drawing time.
 void append(Mesh& into, const Mesh& part, const glm::mat4& placement);
 
 
@@ -81,31 +71,16 @@ struct ProfilePoint {
 using Profile = std::vector<ProfilePoint>;
 
 
-// Spin a silhouette around the Y axis to make a solid of revolution: the oldest trick
-// in the potter's book, and the reason a wine glass takes eight numbers to describe
-// instead of two hundred triangles. `segments` is how many flat facets stand in for
-// the circle -- more of them is rounder and slower, and few of them on purpose is what
-// gives this scene its faceted look.
+// Spin a silhouette around the Y axis to make a solid of revolution.
 Mesh revolve(const Profile& profile, int segments);
 
-// The same, but stopping short: `sweep` is how far round to go. A full turn (tau)
-// gives a closed solid, and anything less leaves a wedge missing, the way a slice cut
-// from a cheese leaves a notch. The two flat faces the cut exposes are filled in and
-// painted `cut`, since they are the inside of the object and would not be the same
-// colour as its outside.
+// The same, but stopping short. This exposes two "cuts", that receive special colering.
 Mesh revolve(const Profile& profile, int segments,
              float sweep, const glm::vec3& cut);
 
 
 // --- ONE BUFFER FOR THE WHOLE SCENE ---
-// Every object's triangles are poured into a SINGLE vertex buffer, uploaded to the
-// GPU once, and never touched again. Each `add` hands back the Piece describing
-// where its argument landed.
 struct SceneMesh {
 	Mesh vertices;  // the whole scene, back to back
-
-	// Append a part and hand back the bookmark to it. Every object arrives here already
-	// in the scene's units and centred on whatever it turns about -- see objects.hpp --
-	// so there is nothing left to correct on the way in.
 	Piece add(const Mesh& part);
 };
