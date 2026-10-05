@@ -9,6 +9,8 @@
 #include <stb_image.h>                    // Sean T. Barrett Image: decodes image files (.png, .jpg, ...) into raw pixel bytes.
 
 
+namespace my {
+
 // Loads an image file into a new OpenGL texture and returns its ID. Returns 0 on failure.
 inline GLuint loadTexture(const char* path) {
 	// Images are stored top row first, but OpenGL expects the bottom row first (t = 0 is the bottom).
@@ -88,7 +90,7 @@ inline GLuint loadTexture(const char* path) {
 // `facePaths` must follow OpenGL's face order: +X (right), -X (left), +Y (top), -Y (bottom), +Z (front), -Z (back).
 inline GLuint loadCubemap(const char* const facePaths[6]) {
 	// Unlike 2D textures, cube-map faces are expected top row first, just like image files: no flip needed.
-	// OBS.: This setting is global, but `loadTexture()` sets it back to `true` every time it is called.
+	// OBS.: This setting is global, but `my::loadTexture()` sets it back to `true` every time it is called.
 	stbi_set_flip_vertically_on_load(false);
 
 	GLuint texture;
@@ -132,3 +134,5 @@ inline GLuint loadCubemap(const char* const facePaths[6]) {
 	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 	return texture;
 }
+
+}  // namespace my

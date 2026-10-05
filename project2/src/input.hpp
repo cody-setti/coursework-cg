@@ -4,8 +4,10 @@
 #include <glad/gl.h>                      // GLAD: must be included before GLFW.
 #include <GLFW/glfw3.h>                   // GL FrameWork: `GLFWwindow`, key codes and key state.
 
-#include "scene/camera.hpp"               // `Camera`.
+#include "scene/camera.hpp"               // `my::Camera`.
 
+
+namespace my {
 
 // Called by GLFW once per key EVENT (press, repeat or release), during `glfwPollEvents()`.
 // Suited for toggles, which must change once per press no matter how long the key is held.
@@ -22,7 +24,7 @@ inline void keyCallback(
 
 // Registers the callbacks above. Must be called once, after the window is created.
 inline void setupInput(GLFWwindow* window) {
-	glfwSetKeyCallback(window, keyCallback);
+	glfwSetKeyCallback(window, my::keyCallback);
 }
 
 // Reads which keys are HELD this frame. Called once per frame, after `glfwPollEvents()`.
@@ -30,9 +32,11 @@ inline void setupInput(GLFWwindow* window) {
 // TODO: requirement 7 (scale, rotation and translation, each on a different model, each on its own keys).
 // TODO: camera controls.
 inline void updateInput(
-	[[maybe_unused]] Camera&     camera   ,
+	[[maybe_unused]] my::Camera& camera   ,
 	[[maybe_unused]] GLFWwindow* window   ,
 	[[maybe_unused]] float       deltaTime   // Seconds since the last frame: keeps speeds independent of the frame rate.
 ) {
 	
 }
+
+}  // namespace my

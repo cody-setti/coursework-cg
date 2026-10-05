@@ -5,6 +5,8 @@
 #include <glm/ext/matrix_transform.hpp>   // `lookAt()`.
 
 
+namespace my {
+
 // Everything needed to build the View matrix.
 struct Camera {
 	glm::vec3 position;  // Eye  : where the camera is (in world space).
@@ -13,7 +15,7 @@ struct Camera {
 };
 
 // Builds the View matrix: moves the world so that the camera sits at the origin, looking down -Z.
-inline glm::mat4 viewMatrix(const Camera& camera) {
+inline glm::mat4 viewMatrix(const my::Camera& camera) {
 	return glm::lookAt(
 		camera.position               ,  // Eye.
 		camera.position + camera.front,  // Center: a point straight ahead of the eye.
@@ -21,5 +23,7 @@ inline glm::mat4 viewMatrix(const Camera& camera) {
 	);
 }
 
-// TODO: functions that move and turn the camera, for `updateInput()` to call
+// TODO: functions that move and turn the camera, for `my::updateInput()` to call
 //       (requirement 9: keep the camera within the sky's and the floor's limits).
+
+}  // namespace my

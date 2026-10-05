@@ -9,6 +9,8 @@
 #include <glad/gl.h>                      // GLAD: OpenGL function pointers (e.g.: `glCreateShader()`).
 
 
+namespace my {
+
 // Reads a whole text file into a string. Returns an empty string on failure.
 inline std::string readFile(const char* path) {
 	std::ifstream file(path);
@@ -60,15 +62,15 @@ inline GLuint compileShader(
 // Every shader program (e.g.: one for models, one for the skybox) is built the same way.
 // Reads, compiles and links a vertex + fragment shader pair. Returns 0 on failure.
 inline GLuint createProgram(const char* vertexPath, const char* fragmentPath) {
-	std::string   vertexSource = readFile(  vertexPath);
-	std::string fragmentSource = readFile(fragmentPath);
+	std::string   vertexSource = my::readFile(  vertexPath);
+	std::string fragmentSource = my::readFile(fragmentPath);
 	if ( vertexSource.empty() || fragmentSource.empty() ) {
 		return 0;
 	}
 
 	// `.c_str()` exposes the string's contents as the `const char*` OpenGL expects.
-	GLuint   vertexShader = compileShader(GL_VERTEX_SHADER  ,   vertexSource.c_str());
-	GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentSource.c_str());
+	GLuint   vertexShader = my::compileShader(GL_VERTEX_SHADER  ,   vertexSource.c_str());
+	GLuint fragmentShader = my::compileShader(GL_FRAGMENT_SHADER, fragmentSource.c_str());
 	if ( vertexShader == 0 || fragmentShader == 0 ) {
 		glDeleteShader(  vertexShader);  // Deleting shader 0 is silently ignored by OpenGL.
 		glDeleteShader(fragmentShader);
@@ -97,3 +99,5 @@ inline GLuint createProgram(const char* vertexPath, const char* fragmentPath) {
 
 	return program;
 }
+
+}  // namespace my

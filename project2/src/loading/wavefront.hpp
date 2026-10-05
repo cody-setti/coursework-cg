@@ -11,6 +11,8 @@
 #include <glm/glm.hpp>                    // GL Mathematics: `glm::vec3` and `glm::vec2`.
 
 
+namespace my {
+
 // Each vertex in the VBO is stored as x, y, z (position) followed by s, t (texture coordinates).
 constexpr int FLOATS_PER_VERTEX = 5;
 
@@ -32,18 +34,18 @@ struct MaterialRange {
 struct ParsedOBJ {
 	// Flat list of triangle vertices:
 	// { x1,y1,z1,s1,t1, x2,y2,z2,s2,t2, x3,y3,z3,s3,t3, ... }.
-	std::vector<float>         vertexData;
+	std::vector<float>             vertexData;
 	
 	// One range per `usemtl` line in file order.
-	std::vector<MaterialRange> ranges    ;
+	std::vector<my::MaterialRange> ranges    ;
 	
 	// Path to the .mtl file named by the `mtllib` line ("" if there is none).
-	std::string                mtlPath   ;
+	std::string                    mtlPath   ;
 };
 
-// Parses a Wavefront .obj file into a `ParsedOBJ` struct. Returns an empty struct on failure.
+// Parses a Wavefront .obj file into a `my::ParsedOBJ` struct. Returns an empty struct on failure.
 // OBS.: Only `v`, `vt`, `f`, `usemtl` and `mtllib` lines are read for now, and every face is assumed to be a triangle.
-inline ParsedOBJ parseOBJ(const char* path) {
+inline my::ParsedOBJ parseOBJ(const char* path) {
 	std::ifstream file(path);
 	if ( !file ) {
 		std::cerr << "Could not open file: " << path << std::endl;
@@ -51,7 +53,7 @@ inline ParsedOBJ parseOBJ(const char* path) {
 	}
 	
 	
-	ParsedOBJ              parsed   ;
+	 my::ParsedOBJ          parsed  ;
 	std::string            line     ;
 	std::vector<glm::vec3> positions;  // Every `v`  line, in file order.
 	std::vector<glm::vec2> texCoords;  // Every `vt` line, in file order.
@@ -82,15 +84,15 @@ inline ParsedOBJ parseOBJ(const char* path) {
 			std::string mtlFile;
 			ss >> mtlFile;
 			
-			parsed.mtlPath = directoryOf(path) + mtlFile;
+			parsed.mtlPath = my::directoryOf(path) + mtlFile;
 		}
 		else if ( prefix == "usemtl" ) {
-			// Start a new, still empty, `MaterialRange` at the current vertex.
+			// Start a new, still empty, `my::MaterialRange` at the current vertex.
 			
 			std::string material;
 			ss >> material;
 			
-			int firstVertex = parsed.vertexData.size() / FLOATS_PER_VERTEX;
+			int firstVertex = parsed.vertexData.size() / my::FLOATS_PER_VERTEX;
 			
 			parsed.ranges.push_back(
 				{ material   , 
@@ -147,8 +149,10 @@ inline std::map<std::string, std::string> parseMTL(const char* path) {
 			std::string imageFile;
 			ss >> imageFile;
 			
-			imagePaths[material] = directoryOf(path) + imageFile;
+			imagePaths[material] = my::directoryOf(path) + imageFile;
 		}
 	}
 	return imagePaths;
 }
+
+}  // namespace my

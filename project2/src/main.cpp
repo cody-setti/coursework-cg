@@ -25,6 +25,8 @@
 
 
 // --- CONSTANTS ---
+namespace my {
+
 // `constexpr` is a constant whos value can be resolved at compile time.
 constexpr int WINDOW_WIDTH  = 1280;
 constexpr int WINDOW_HEIGHT =  720;
@@ -36,7 +38,7 @@ const char*  MODEL_FRAG_PATH = "shaders/textured.frag";
 const char* SKYBOX_VERT_PATH = "shaders/skybox.vert"  ;
 const char* SKYBOX_FRAG_PATH = "shaders/skybox.frag"  ;
 
-// Sky faces, in `loadCubemap()`'s order: +X, -X, +Y, -Y, +Z, -Z.
+// Sky faces, in `my::loadCubemap()`'s order: +X, -X, +Y, -Y, +Z, -Z.
 const char* const SKYBOX_FACE_PATHS[6] = {
 	"assets/skybox/right.png" ,
 	"assets/skybox/left.png"  ,
@@ -59,6 +61,8 @@ constexpr GLint MODEL_LOCATION = 0;
 constexpr GLint  VIEW_LOCATION = 1;
 constexpr GLint  PROJ_LOCATION = 2;
 
+}  // namespace my
+
 
 // --- MAIN ---
 int main() {
@@ -77,11 +81,11 @@ int main() {
 	glfwWindowHint(GLFW_OPENGL_PROFILE       , GLFW_OPENGL_CORE_PROFILE);  // Explicitly disable deprecated legacy functions.
 	
 	GLFWwindow* window = glfwCreateWindow(
-		WINDOW_WIDTH  ,
-		WINDOW_HEIGHT ,
-		"Spooky House",  // PARAM.: Window title.
-		nullptr       ,  // ARG.  : No fullscreen monitor.
-		nullptr          // ARG.  : Don't share resources with another context.
+		my::WINDOW_WIDTH  ,
+		my::WINDOW_HEIGHT ,
+		"Spooky House"    ,  // PARAM.: Window title.
+		nullptr           ,  // ARG.  : No fullscreen monitor.
+		nullptr              // ARG.  : Don't share resources with another context.
 	);
 	if ( window == nullptr ) {
 		std::cerr << "Window creation failed." << std::endl;
@@ -107,12 +111,12 @@ int main() {
 	);
 	
 	// Register the key callbacks GLFW will call during `glfwPollEvents()`.
-	setupInput(window);
+	my::setupInput(window);
 	
 	
 	// --- BUILD SHADER PROGRAMS ---
-	GLuint shaderProgram = createProgram( MODEL_VERT_PATH,  MODEL_FRAG_PATH);
-	GLuint skyboxProgram = createProgram(SKYBOX_VERT_PATH, SKYBOX_FRAG_PATH);
+	GLuint shaderProgram = my::createProgram(my::MODEL_VERT_PATH , my::MODEL_FRAG_PATH );
+	GLuint skyboxProgram = my::createProgram(my::SKYBOX_VERT_PATH, my::SKYBOX_FRAG_PATH);
 	if ( shaderProgram == 0 || skyboxProgram == 0 ) {
 		glfwTerminate();
 		return EXIT_FAILURE;
@@ -121,12 +125,12 @@ int main() {
 	
 	// --- MODELS + SKYBOX ---
 	// External models.
-	Model  grass = loadModel (  GRASS_OBJ_PATH );
-	Model  pine  = loadModel (   PINE_OBJ_PATH );
-	Model  oak   = loadModel (    OAK_OBJ_PATH );
+	my::Model  grass = my::loadModel (my::GRASS_OBJ_PATH   );
+	my::Model  pine  = my::loadModel (my::PINE_OBJ_PATH    );
+	my::Model  oak   = my::loadModel (my::OAK_OBJ_PATH     );
 	// Transitional model.
-	Model  hut   = loadModel (    HUT_OBJ_PATH );
-	Skybox sky   = loadSkybox(SKYBOX_FACE_PATHS);
+	my::Model  hut   = my::loadModel (my::HUT_OBJ_PATH     );
+	my::Skybox sky   = my::loadSkybox(my::SKYBOX_FACE_PATHS);
 	if (
 		 grass.VAO == 0 || pine.VAO == 0 || oak.VAO == 0 ||
 		   hut.VAO == 0 ||
@@ -144,27 +148,27 @@ int main() {
 	// The default test (`GL_LESS`) would discard it there: `GL_LEQUAL` lets "equally far" pass too.
 	glDepthFunc(GL_LEQUAL);
 	
-	Camera camera = {
+	my::Camera camera = {
 		glm::vec3(0.0f, 8.0f, 12.0f)                                              ,  // Position.
 		glm::normalize(glm::vec3(0.0f, 3.0f, 0.0f) - glm::vec3(0.0f, 8.0f, 12.0f)),  // Front: toward the point (0, 3, 0).
 		glm::vec3(0.0f, 1.0f,  0.0f)                                                 // Up.
 	};
 
 	glm::mat4 P = glm::perspective(
-		glm::radians(60.0f)                       , // Vertical FoV.
-		(float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, // Aspect ratio (window width/height).
-		  0.1f                                    , // Near plane.
-		100.0f                                      // Far  plane.
+		glm::radians(60.0f)                               , // Vertical FoV.
+		(float)my::WINDOW_WIDTH / (float)my::WINDOW_HEIGHT, // Aspect ratio (window width/height).
+		  0.1f                                            , // Near plane.
+		100.0f                                              // Far  plane.
 	);
 	
 	// Uniform values are stored PER PROGRAM: both programs need their own copy of P (and of V, in the loop).
 	// OBS.: `glUniform*()` writes into the program currently in use.
 	// P never changes: upload it once.
 	glUseProgram(shaderProgram);
-	glUniformMatrix4fv(PROJ_LOCATION, 1, GL_FALSE, &P[0][0]);
+	glUniformMatrix4fv(my::PROJ_LOCATION, 1, GL_FALSE, &P[0][0]);
 	
 	glUseProgram(skyboxProgram);
-	glUniformMatrix4fv(PROJ_LOCATION, 1, GL_FALSE, &P[0][0]);
+	glUniformMatrix4fv(my::PROJ_LOCATION, 1, GL_FALSE, &P[0][0]);
 	
 	float lastTime = (float)glfwGetTime();
 	
@@ -184,14 +188,14 @@ int main() {
 		float deltaTime   = currentTime - lastTime;
 		lastTime          = currentTime;
 		
-		updateInput(camera, window, deltaTime);
+		my::updateInput(camera, window, deltaTime);
 		
 		// V changes whenever the camera does: rebuild and upload it every frame.
-		glm::mat4 V = viewMatrix(camera);
+		glm::mat4 V = my::viewMatrix(camera);
 		glUseProgram(shaderProgram);
-		glUniformMatrix4fv(VIEW_LOCATION, 1, GL_FALSE, &V[0][0]);
+		glUniformMatrix4fv(my::VIEW_LOCATION, 1, GL_FALSE, &V[0][0]);
 		glUseProgram(skyboxProgram);
-		glUniformMatrix4fv(VIEW_LOCATION, 1, GL_FALSE, &V[0][0]);
+		glUniformMatrix4fv(my::VIEW_LOCATION, 1, GL_FALSE, &V[0][0]);
 		
 		
 		// MODELS
@@ -199,33 +203,33 @@ int main() {
 		glm::mat4 M;
 
 		M = glm::mat4(1.0f);
-		glUniformMatrix4fv(MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		drawModel(grass);
+		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
+		my::drawModel(grass);
 		
 		M = glm::mat4(1.0f);
 		M = glm::translate(M,                            glm::vec3(-9.0f, 2.0f, -12.0f));
 		M = glm::rotate   (M, 5.0f*(float)glfwGetTime(), glm::vec3(0.0f, 1.0f,  0.0f));
-		glUniformMatrix4fv(MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		drawModel(pine);
+		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
+		my::drawModel(pine);
 		
 		M = glm::mat4(1.0f);
 		M = glm::translate(M,                            glm::vec3(5.0f, 2.78f, -3.7f));
 		M = glm::rotate   (M, 2.0f*(float)glfwGetTime(), glm::vec3( 0.0f, 1.0f,   0.0f));
-		glUniformMatrix4fv(MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		drawModel(oak);
+		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
+		my::drawModel(oak);
 		
 		M = glm::mat4(1.0f);
 		M = glm::translate(M,                            glm::vec3(0.0f, 2.1f, 0.0f));
 		M = glm::rotate   (M, 0.3f*(float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
-		glUniformMatrix4fv(MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		drawModel(hut);
+		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
+		my::drawModel(hut);
 		
 		
 		// SKY BOX
 		// Drawn last: wherever a model already stands, the depth test discards the sky's (farther) fragments,
 		// saving the work of shading them.
 		glUseProgram(skyboxProgram);
-		drawSkybox(sky);
+		my::drawSkybox(sky);
 		
 		// DISPLAY FRAME
 		// Show the finished frame (back buffer becomes front buffer).
@@ -233,13 +237,16 @@ int main() {
 	}
 	
 	// --- SHUTDOWN ---
-	deleteModel (grass);
-	deleteModel (pine );
-	deleteModel (oak  );
-	deleteModel (hut  );
-	deleteSkybox(sky  );
+	my::deleteModel (grass);
+	my::deleteModel (pine );
+	my::deleteModel (oak  );
+	my::deleteModel (hut  );
+	my::deleteSkybox(sky  );
+	
 	glDeleteProgram(shaderProgram);
 	glDeleteProgram(skyboxProgram);
+	
 	glfwTerminate();
+	
 	return EXIT_SUCCESS;
 }
