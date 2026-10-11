@@ -22,6 +22,8 @@
 #include "scene/skybox.hpp"               // Uploading the sky cube to the GPU and drawing it.
 #include "scene/camera.hpp"               // Camera state and View matrix.
 #include "input.hpp"                      // Keys that act on the scene.
+#include "scene/constants.hpp" 			  // Constants regarding the objects and their movimentations
+#include "scene/scene.hpp"               // Struct scene for glfw's Window User Pointer
 
 
 // --- CONSTANTS ---
@@ -149,10 +151,16 @@ int main() {
 	glDepthFunc(GL_LEQUAL);
 	
 	my::Camera camera = {
-		glm::vec3(0.0f, 8.0f, 12.0f)                                              ,  // Position.
-		glm::normalize(glm::vec3(0.0f, 3.0f, 0.0f) - glm::vec3(0.0f, 8.0f, 12.0f)),  // Front: toward the point (0, 3, 0).
-		glm::vec3(0.0f, 1.0f,  0.0f)                                                 // Up.
+		my::CAMERA_POS_INI  ,  // Position.
+		my::CAMERA_FRONT_INI,  // Front
+		my::CAMERA_UP          // Up.
 	};
+
+	my::Scene scene = {
+		&camera
+	}; //creates a scene with the camera we just created 
+
+	glfwSetWindowUserPointer(window, static_cast<void*>(&scene));
 
 	glm::mat4 P = glm::perspective(
 		glm::radians(60.0f)                               , // Vertical FoV.
@@ -184,6 +192,11 @@ int main() {
 		// PROCESS KEY PRESSES, CLICKS, ETC...
 		glfwPollEvents();
 		
+		glPolygonMode(
+			GL_FRONT_AND_BACK,
+			scene.wireframe ? GL_LINE : GL_FILL           // Draw only the edges ("wires") between
+		);     
+
 		float currentTime = (float)glfwGetTime();
 		float deltaTime   = currentTime - lastTime;
 		lastTime          = currentTime;
@@ -207,20 +220,17 @@ int main() {
 		my::drawModel(grass);
 		
 		M = glm::mat4(1.0f);
-		M = glm::translate(M,                            glm::vec3(-9.0f, 2.0f, -12.0f));
-		M = glm::rotate   (M, 5.0f*(float)glfwGetTime(), glm::vec3(0.0f, 1.0f,  0.0f));
+		M = glm::translate(M,                            my::PINE_POS);
 		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
 		my::drawModel(pine);
 		
 		M = glm::mat4(1.0f);
-		M = glm::translate(M,                            glm::vec3(5.0f, 2.78f, -3.7f));
-		M = glm::rotate   (M, 2.0f*(float)glfwGetTime(), glm::vec3( 0.0f, 1.0f,   0.0f));
+		M = glm::translate(M,                            my::OAK_POS);
 		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
 		my::drawModel(oak);
 		
 		M = glm::mat4(1.0f);
-		M = glm::translate(M,                            glm::vec3(0.0f, 2.1f, 0.0f));
-		M = glm::rotate   (M, 0.3f*(float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
+		M = glm::translate(M,                            my::HUT_POS);
 		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
 		my::drawModel(hut);
 		
