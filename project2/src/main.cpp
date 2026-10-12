@@ -6,6 +6,7 @@
 // CLASSIC C++ LIBRARIES
 #include <glm/trigonometric.hpp>
 #include <iostream>                       // Input/Output Stream: output error messages using `std::cerr`.
+#include <vector>
 
 // COMPUTER GRAPHICS LIBRARIES
 #include <glad/gl.h>                      // GLAD: loads driver-specific OpenGL function pointers at runtime.
@@ -16,6 +17,7 @@
 #include <glm/glm.hpp>                    // GL Mathematics: provides GLSL-compatible vector and matrix types.
 #include <glm/ext/matrix_transform.hpp>   // e.g.: `translate()`, `rotate()`, `scale()`, `lookAt()`.
 #include <glm/ext/matrix_clip_space.hpp>  // e.g.: `perspective()`.
+#include <ostream>
 
 // PROJECT HEADERS
 #include "loading/shader.hpp"             // Building shader programs from GLSL source files.
@@ -30,7 +32,8 @@
 // --- CONSTANTS ---
 namespace my {
 
-// `constexpr` is a constant whos value can be resolved at compile time.
+// `constexpr` is a constant whos value can be resolved at compile time. 
+// Used only for defining the first window size
 constexpr int WINDOW_WIDTH  = 1280;
 constexpr int WINDOW_HEIGHT =  720;
 
@@ -61,6 +64,8 @@ const char* 	    POT_OBJ_PATH = "assets/pot/zelda_pot.obj";
 const char* 	  HEART_OBJ_PATH = "assets/piece_of_heart/Piece_of_heart.obj";
 const char* 	   MASK_OBJ_PATH = "assets/mask_salesman/Happy_Mask_Salesman.obj";
 const char* 	   MOON_OBJ_PATH = "assets/moon/moon.obj";
+const char*		  EPONA_OBJ_PATH = "assets/epona/epona.obj";
+const char*		 SHIELD_OBJ_PATH = "assets/shield/shield.obj";
 
 // Uniform locations, as fixed by the `layout (location = ...)` qualifiers in "shaders/textured.vert".
 // OBS.: "shaders/skybox.vert" uses the same slots for V and P.
@@ -139,6 +144,8 @@ int main() {
 	my::Model salesman = my::loadModel(my::MASK_OBJ_PATH     );
 	my::Model heart    = my::loadModel(my::HEART_OBJ_PATH    );
 	my::Model moon     = my::loadModel(my::MOON_OBJ_PATH     );
+	my::Model epona    = my::loadModel(my::EPONA_OBJ_PATH    );
+	my::Model shield   = my::loadModel(my::SHIELD_OBJ_PATH   );
 	// Transitional model.
 	my::Model  hut     = my::loadModel (my::HUT_OBJ_PATH     );
 	my::Skybox sky     = my::loadSkybox(my::SKYBOX_FACE_PATHS);
@@ -226,31 +233,52 @@ int main() {
 		glUseProgram(shaderProgram);
 		glm::mat4 M;
 
+		//GRASS
 		M = glm::mat4(1.0f);
+		M = glm::translate(M,                            my::GRASS_POS);
+		M = glm::scale(M, my::GRASS_SCALE);
 		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
 		my::drawModel(grass);
 		
-		M = glm::mat4(1.0f);
-		M = glm::translate(M,                            my::PINE_POS);
-		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		my::drawModel(pine);
+		//PINE
+		for(int i = 0; i < my::PINE_POS.size(); i++){
+			M = glm::mat4(1.0f);
+			M = glm::translate(M,                          my::PINE_POS[i]);
+			M = glm::scale(M, 							   my::PINE_SCALE[i]);
+			glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
+			my::drawModel(pine);
+		}
 		
-		M = glm::mat4(1.0f);
-		M = glm::translate(M,                            my::OAK_POS);
-		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		my::drawModel(oak);
+		//OAK
+		for(int i = 0; i < my::OAK_POS.size(); i++){
+			M = glm::mat4(1.0f);
+			M = glm::translate(M,                            my::OAK_POS[i]);
+			M = glm::scale(M, 							   my::OAK_SCALE[i]);
+			glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
+			my::drawModel(oak);
 		
+		}
+		
+		//HUT
 		M = glm::mat4(1.0f);
 		M = glm::translate(M,                            my::HUT_POS);
 		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
 		my::drawModel(hut);
 		
+		//SHIELD
+		M = glm::mat4(1.0f);
+		M = glm::translate(M,                            my::SHIELD_POS);
+		M = glm::rotate(M, my::SHIELD_ANGLES.z, glm::vec3(0.0f, 0.0f, 1.0f));
+		M = glm::rotate(M, my::SHIELD_ANGLES.y, glm::vec3(0.0f, 1.0f, 0.0f));
+		M = glm::scale(M, my::SHIELD_SCALE);
+		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
+		my::drawModel(shield);
 
 		//MOON OBJECT
 		M = glm::mat4(1.0f);
 		M = glm::translate(M,                            my::MOON_POS);
 		M = glm::scale(M, glm::vec3(scene.moon_scale));
-		M= glm::rotate(M, glm::radians(-60.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		M = glm::rotate(M, glm::radians(-60.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 		M = glm::rotate(M, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		M = glm::rotate(M, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
@@ -283,6 +311,17 @@ int main() {
 		M = glm::scale(M, my::HEART_SCALE);
 		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
 		my::drawModel(heart);
+
+
+		//EPONA
+		M = glm::mat4(1.0f);
+		M = glm::translate(M,                            scene.epona_pos);
+		float theta = glm::atan(scene.epona_last_direction.z, scene.epona_last_direction.x);
+		M = glm::rotate(M, -theta, glm::vec3(0.0f, 1.0f, 0.0f));
+		M = glm::scale(M, my::EPONA_SCALE);
+		M = glm::rotate(M, glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
+		my::drawModel(epona);
 
 		// SKY BOX
 		// Drawn last: wherever a model already stands, the depth test discards the sky's (farther) fragments,

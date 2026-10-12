@@ -18,5 +18,8 @@ struct Scene {
 
     float moon_scale = 0.01f;
     float heart_angle = 0.0f;
+
+    glm::vec3 epona_pos = glm::vec3(-3.0f, 0.0f, 7.0f);
+    glm::vec3 epona_last_direction = glm::vec3(0.0f, 0.0f, -1.0f);
 };
 }

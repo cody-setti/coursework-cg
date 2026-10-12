@@ -106,7 +106,6 @@ inline void setupInput(GLFWwindow* window) {
 
 // Reads which keys are HELD this frame. Called once per frame, after `glfwPollEvents()`.
 // Suited for continuous actions, which must progress for as long as the key is held.
-// TODO: requirement 7 (scale, rotation and translation, each on a different model, each on its own keys).
 inline void updateInput(
 	[[maybe_unused]] my::Camera& camera   ,
 	[[maybe_unused]] GLFWwindow* window   ,
@@ -125,7 +124,9 @@ inline void updateInput(
 	if(held(window, GLFW_KEY_LEFT_CONTROL)) direction = direction - glm::vec3(0.0f, 1.0f, 0.0f);
 	if(glm::length(direction) > 0.0f) {
 		direction = glm::normalize(direction);
-		camera.position = camera.position + (CAMERA_SPEED * direction * deltaTime);
+		if(held(window, GLFW_KEY_LEFT_SHIFT))
+			camera.position = camera.position + (CAMERA_SPEED_SPRINT * direction * deltaTime);
+		else camera.position = camera.position + (CAMERA_SPEED * direction * deltaTime);
 	}
 	camera.position.x = std::clamp(camera.position.x, LOWER_BBOX.x, HIGHER_BBOX.x);
 	camera.position.z = std::clamp(camera.position.z, LOWER_BBOX.z, HIGHER_BBOX.z);
@@ -138,6 +139,19 @@ inline void updateInput(
 	//ROTATING THE HEART
 	if(held(window, GLFW_KEY_Z)) scene->heart_angle = scene->heart_angle - HEART_ROTATION_SPEED * deltaTime;
 	if(held(window, GLFW_KEY_X)) scene->heart_angle = scene->heart_angle + HEART_ROTATION_SPEED * deltaTime;
+
+	//EPONA MOVEMENT
+	glm::vec3 e_direction = glm::vec3(0.0f);
+	if(held(window, GLFW_KEY_UP)) e_direction = e_direction + camera.front;
+	if(held(window, GLFW_KEY_DOWN)) e_direction = e_direction - camera.front;
+	if(held(window, GLFW_KEY_RIGHT)) e_direction = e_direction + glm::normalize(glm::cross(camera.front, camera.up));
+	if(held(window, GLFW_KEY_LEFT)) e_direction = e_direction - glm::normalize(glm::cross(camera.front, camera.up));
+	e_direction.y = 0.0f;
+	if(glm::length(e_direction) > 0.0f) {
+		e_direction = glm::normalize(e_direction);
+		scene->epona_pos = scene->epona_pos + (EPONA_SPEED * e_direction * deltaTime);
+		scene->epona_last_direction = e_direction;
+	}
 }
 
 
