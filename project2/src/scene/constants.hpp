@@ -34,6 +34,9 @@ const glm::vec3 CAMERA_UP = glm::vec3(0.0f, 1.0f, 0.0f);
 const glm::vec3 CAMERA_FRONT_INI = glm::normalize(glm::vec3(0.0f, 0.0f, -1.0f));
 const float     CAMERA_SPEED = 5.0f;
 
+const float     MAX_FOV = 90.0f;
+const float     MIN_FOV = 22.5f;
+
 const glm::vec3 LOWER_BBOX = glm::vec3(-10.0f, 3.0f, -10.0f);
 const glm::vec3 HIGHER_BBOX = glm::vec3(10.0f, 6.0f, 10.0f);
 

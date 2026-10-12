@@ -1,6 +1,7 @@
 #pragma once
 // --- INPUT ---
 // Handling every key that acts on the scene, the camera's included.
+#include <GL/gl.h>
 #include <algorithm>					  // using std::clamp
 #include <glad/gl.h>                      // GLAD: must be included before GLFW.
 #include <GLFW/glfw3.h>                   // GL FrameWork: `GLFWwindow`, key codes and key state.
@@ -13,6 +14,10 @@
 
 
 namespace my {
+
+bool held(GLFWwindow* window, int key) {
+	return glfwGetKey(window, key) == GLFW_PRESS;
+}
 
 // Called by GLFW once per key EVENT (press, repeat or release), during `glfwPollEvents()`.
 // Suited for toggles, which must change once per press no matter how long the key is held.
@@ -57,20 +62,48 @@ inline void mouseCallback(
 	camera->pitch = std::clamp(camera->pitch, -89.0, 89.0);
 	calculateFront(*camera);
 }
-//TODO: change FOV
+
+//Capture mouse scroll movement. Used to chance fov
+inline void scrollCallback(
+	[[maybe_unused]] GLFWwindow* window, 
+	[[maybe_unused]] double xoffset, //offset of scroll in x(unused)
+	[[maybe_unused]]double yoffset   //offset of scroll in y(the usual scroll motion)
+) {
+	Scene *scene = static_cast<Scene*>(glfwGetWindowUserPointer(window));
+	scene->fov = scene->fov - yoffset;
+	scene->fov = std::clamp(scene->fov, MIN_FOV, MAX_FOV);
+}
+
+//Captures if the size of window has changed
+inline void frameBufferSizeCallback(
+	[[maybe_unused]] GLFWwindow* window, 
+	[[maybe_unused]] int width, //window width
+	[[maybe_unused]] int height  //window height
+) {
+	Scene *scene = static_cast<Scene*>(glfwGetWindowUserPointer(window));
+	glViewport(0, 0, width, height); //makes all the pixels in the window be mapped
+	//changes the aspect ratio of the projetion matrix.
+	scene->window_height = height;
+	scene->window_width = width;
+}
 
 
 // Registers the callbacks above. Must be called once, after the window is created.
 inline void setupInput(GLFWwindow* window) {
 	glfwSetKeyCallback(window, my::keyCallback);
+
 	glfwSetCursorPosCallback(window, my::mouseCallback);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+	glfwSetScrollCallback(window, scrollCallback);
+
+	glfwSetFramebufferSizeCallback(window, frameBufferSizeCallback);
 }
 
 
-bool held(GLFWwindow* window, int key) {
-	return glfwGetKey(window, key) == GLFW_PRESS;
-}
+
+
+
 // Reads which keys are HELD this frame. Called once per frame, after `glfwPollEvents()`.
 // Suited for continuous actions, which must progress for as long as the key is held.
 // TODO: requirement 7 (scale, rotation and translation, each on a different model, each on its own keys).

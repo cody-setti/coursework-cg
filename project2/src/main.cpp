@@ -101,7 +101,7 @@ int main() {
 	}
 	
 	// --- OPENGL FUNCTION CALLS ---
-	// Set "Spooky House" as context for OpenGL calls.
+	// Set our window as context for OpenGL calls.
 	glfwMakeContextCurrent(window);
 	
 	// Ask the driver for the address of every OpenGL function.
@@ -171,21 +171,6 @@ int main() {
 
 	glfwSetWindowUserPointer(window, static_cast<void*>(&scene));
 
-	glm::mat4 P = glm::perspective(
-		glm::radians(60.0f)                               , // Vertical FoV.
-		(float)my::WINDOW_WIDTH / (float)my::WINDOW_HEIGHT, // Aspect ratio (window width/height).
-		  0.1f                                            , // Near plane.
-		100.0f                                              // Far  plane.
-	);
-	
-	// Uniform values are stored PER PROGRAM: both programs need their own copy of P (and of V, in the loop).
-	// OBS.: `glUniform*()` writes into the program currently in use.
-	// P never changes: upload it once.
-	glUseProgram(shaderProgram);
-	glUniformMatrix4fv(my::PROJ_LOCATION, 1, GL_FALSE, &P[0][0]);
-	
-	glUseProgram(skyboxProgram);
-	glUniformMatrix4fv(my::PROJ_LOCATION, 1, GL_FALSE, &P[0][0]);
 	
 	float lastTime = (float)glfwGetTime();
 	
@@ -211,7 +196,24 @@ int main() {
 		lastTime          = currentTime;
 		
 		my::updateInput(camera, window, deltaTime);
+
+		glm::mat4 P = glm::perspective(
+			glm::radians(scene.fov)                               , // Vertical FoV.
+			(float)scene.window_width / (float)scene.window_height, // Aspect ratio (window width/height).
+			0.1f                                            , // Near plane.
+			100.0f                                              // Far  plane.
+		);
+
+		// Uniform values are stored PER PROGRAM: both programs need their own copy of P (and of V, in the loop).
+		// OBS.: `glUniform*()` writes into the program currently in use.
+		// P never changes: upload it once.
+		glUseProgram(shaderProgram);
+		glUniformMatrix4fv(my::PROJ_LOCATION, 1, GL_FALSE, &P[0][0]);
 		
+		glUseProgram(skyboxProgram);
+		glUniformMatrix4fv(my::PROJ_LOCATION, 1, GL_FALSE, &P[0][0]);
+		
+
 		// V changes whenever the camera does: rebuild and upload it every frame.
 		glm::mat4 V = my::viewMatrix(camera);
 		glUseProgram(shaderProgram);
