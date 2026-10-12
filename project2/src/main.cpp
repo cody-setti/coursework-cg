@@ -95,7 +95,7 @@ int main() {
 	GLFWwindow* window = glfwCreateWindow(
 		my::WINDOW_WIDTH  ,
 		my::WINDOW_HEIGHT ,
-		"Im zeldaing it"    ,  // PARAM.: Window title.
+		"Falling Moon"    ,  // PARAM.: Window title.
 		nullptr           ,  // ARG.  : No fullscreen monitor.
 		nullptr              // ARG.  : Don't share resources with another context.
 	);

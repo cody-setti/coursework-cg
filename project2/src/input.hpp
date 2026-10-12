@@ -135,6 +135,7 @@ inline void updateInput(
 	//SCALING THE MOON
 	if(held(window, GLFW_KEY_M)) scene->moon_scale = scene->moon_scale + MOON_SCALE_SPEED * deltaTime;
 	if(held(window, GLFW_KEY_N)) scene->moon_scale = scene->moon_scale - MOON_SCALE_SPEED * deltaTime;
+	scene->moon_scale = std::clamp(scene->moon_scale, MIN_MOON_SCALE, MAX_MOON_SCALE);
 
 	//ROTATING THE HEART
 	if(held(window, GLFW_KEY_Z)) scene->heart_angle = scene->heart_angle - HEART_ROTATION_SPEED * deltaTime;

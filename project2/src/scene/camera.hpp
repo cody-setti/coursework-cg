@@ -14,9 +14,9 @@ struct Camera {
 	glm::vec3 position;  // Eye  : where the camera is (in world space).
 	glm::vec3 front   ;  // Unit vector: the direction it looks at.
 	glm::vec3 up      ;  // Which world direction is "up" for the camera.
-	double pitch = 0.0		  ;
-	double yaw = -90.0		  ;
-	double roll = 0.0		  ;
+	double pitch = 0.0;  //Euler Angles for updating front vector
+	double yaw = -90.0;
+	double roll = 0.0 ;
 };
 
 //Calculates the normalized front vector based on Euler Angles (pitch, yaw and roll) roll is not actually used in the code at all.

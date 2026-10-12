@@ -1,4 +1,4 @@
-# Spooky House
+# Falling moon
 
 ```sh
 make run
@@ -23,13 +23,32 @@ make run
                                    camera.hpp ────┘                         
                                        ▲                                    
                                        └───────────── input.hpp ◄── keyboard
+                                                           ▲ 
+                                  constants.hpp ───────────┤
+                                    scene.hpp   ───────────┘
 ```
 
-## What's left to do
-**5.** "Os modelos devem ser ajustados convenientemente e de um jeito coerente com o mundo real. Exemplos: sofás e pessoas não flutuam; um óculos não é maior que uma mesa, etc."
+## Commands
 
-**7.** "As transformações escala, rotação e translação devem ser aplicadas, cada uma em um modelo diferente e com acionamento via teclado de forma independente."
+### Camera controls
+- <kbd>w</kbd> walk forwards
+- <kbd>s</kbd> walk backwards
+- <kbd>a</kbd> walk to the left
+- <kbd>d</kbd> walk to the right
+- <kbd>Space</kbd> go up
+- <kbd>ctrl</kbd> go down
+- <kbd>shift</kbd> sprint
 
-**9.** "O seu programa deve restringir a exploração do cenário dentro dos limites da "borda" do céu e terreno. Não é necessário restringir o acesso aos modelos, ou seja, a câmera pode passar livremente "por dentro" dos modelos (com exceção do céu e piso)."
+### Moon controls
+- <kbd>m</kbd> increase moon size
+- <kbd>n</kbd> decrease moon size
 
-**10.** "O usuário deve poder visualizar a malha poligonal quando quiser. Caso ele aperte `p`, as malhas dos objetos devem ser exibidas (caso estejam ocultas) ou ocultadas (caso estejam sendo exibidas)."
+### Heart controls
+- <kbd>x</kbd> spins heart counter-clockwise
+- <kbd>z</kbd> spins heart clockwise
+
+### Horse controls
+- <kbd>up</kbd> moves the horse away from the camera
+- <kbd>down</kbd> moves the horse towards the camera
+- <kbd>right</kbd> moves the horse to the right of the camera
+- <kbd>left</kbd> moves the horse to the left of the camera
