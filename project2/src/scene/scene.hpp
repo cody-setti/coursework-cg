@@ -11,5 +11,8 @@ namespace my {
 struct Scene {
     Camera *camera;
     bool wireframe = false; //The style of drawin. If true, draw only the edges
+
+    float moon_scale = 0.01f;
+    float heart_angle = 0.0f;
 };
 }

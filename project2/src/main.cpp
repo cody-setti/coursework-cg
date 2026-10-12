@@ -4,6 +4,7 @@
                                           // Provides human-readable exit codes `EXIT_SUCCESS` and `EXIT_FAILURE`.
 
 // CLASSIC C++ LIBRARIES
+#include <glm/trigonometric.hpp>
 #include <iostream>                       // Input/Output Stream: output error messages using `std::cerr`.
 
 // COMPUTER GRAPHICS LIBRARIES
@@ -56,6 +57,10 @@ const char*        PINE_OBJ_PATH = "assets/pine/pine.obj";
 const char*         OAK_OBJ_PATH = "assets/oak/oak.obj"  ;
 // Transitional model  file path.
 const char*         HUT_OBJ_PATH = "assets/hut/hut.obj"  ;
+const char* 	    POT_OBJ_PATH = "assets/pot/zelda_pot.obj";
+const char* 	  HEART_OBJ_PATH = "assets/piece_of_heart/Piece_of_heart.obj";
+const char* 	   MASK_OBJ_PATH = "assets/mask_salesman/Happy_Mask_Salesman.obj";
+const char* 	   MOON_OBJ_PATH = "assets/moon/moon.obj";
 
 // Uniform locations, as fixed by the `layout (location = ...)` qualifiers in "shaders/textured.vert".
 // OBS.: "shaders/skybox.vert" uses the same slots for V and P.
@@ -85,7 +90,7 @@ int main() {
 	GLFWwindow* window = glfwCreateWindow(
 		my::WINDOW_WIDTH  ,
 		my::WINDOW_HEIGHT ,
-		"Spooky House"    ,  // PARAM.: Window title.
+		"Im zeldaing it"    ,  // PARAM.: Window title.
 		nullptr           ,  // ARG.  : No fullscreen monitor.
 		nullptr              // ARG.  : Don't share resources with another context.
 	);
@@ -127,12 +132,16 @@ int main() {
 	
 	// --- MODELS + SKYBOX ---
 	// External models.
-	my::Model  grass = my::loadModel (my::GRASS_OBJ_PATH   );
-	my::Model  pine  = my::loadModel (my::PINE_OBJ_PATH    );
-	my::Model  oak   = my::loadModel (my::OAK_OBJ_PATH     );
+	my::Model  grass   = my::loadModel (my::GRASS_OBJ_PATH   );
+	my::Model  pine    = my::loadModel (my::PINE_OBJ_PATH    );
+	my::Model  oak     = my::loadModel (my::OAK_OBJ_PATH     );
+	my::Model pot      = my::loadModel(my::POT_OBJ_PATH      );
+	my::Model salesman = my::loadModel(my::MASK_OBJ_PATH     );
+	my::Model heart    = my::loadModel(my::HEART_OBJ_PATH    );
+	my::Model moon     = my::loadModel(my::MOON_OBJ_PATH     );
 	// Transitional model.
-	my::Model  hut   = my::loadModel (my::HUT_OBJ_PATH     );
-	my::Skybox sky   = my::loadSkybox(my::SKYBOX_FACE_PATHS);
+	my::Model  hut     = my::loadModel (my::HUT_OBJ_PATH     );
+	my::Skybox sky     = my::loadSkybox(my::SKYBOX_FACE_PATHS);
 	if (
 		 grass.VAO == 0 || pine.VAO == 0 || oak.VAO == 0 ||
 		   hut.VAO == 0 ||
@@ -234,7 +243,45 @@ int main() {
 		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
 		my::drawModel(hut);
 		
+
+		//MOON OBJECT
+		M = glm::mat4(1.0f);
+		M = glm::translate(M,                            my::MOON_POS);
+		M = glm::scale(M, glm::vec3(scene.moon_scale));
+		M= glm::rotate(M, glm::radians(-60.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		M = glm::rotate(M, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		M = glm::rotate(M, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
+		my:my::drawModel(moon);
 		
+		//SALESMAN
+		M = glm::mat4(1.0f);
+		M = glm::translate(M,                            my::MASK_POS);
+		M = glm::scale(M, my::MASK_SCALE);
+		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
+		my::drawModel(salesman);
+
+		//POTS
+		M = glm::mat4(1.0f);
+		M = glm::translate(M,                            my::POT1_POS);
+		M = glm::scale(M, my::POT_SCALE);
+		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
+		my::drawModel(pot);
+
+		M = glm::mat4(1.0f);
+		M = glm::translate(M,                            my::POT2_POS);
+		M = glm::scale(M, my::POT_SCALE);
+		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
+		my::drawModel(pot);
+
+		//HEART
+		M = glm::mat4(1.0f);
+		M = glm::translate(M,                            my::HEART_POS);
+		M = glm::rotate(M, scene.heart_angle, glm::vec3(0.0f, 1.0f, 0.0f));
+		M = glm::scale(M, my::HEART_SCALE);
+		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
+		my::drawModel(heart);
+
 		// SKY BOX
 		// Drawn last: wherever a model already stands, the depth test discards the sky's (farther) fragments,
 		// saving the work of shading them.

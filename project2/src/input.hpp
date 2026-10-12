@@ -79,6 +79,8 @@ inline void updateInput(
 	[[maybe_unused]] GLFWwindow* window   ,
 	[[maybe_unused]] float       deltaTime   // Seconds since the last frame: keeps speeds independent of the frame rate.
 ) {
+	Scene *scene = static_cast<Scene*>(glfwGetWindowUserPointer(window));
+
 	//CAMERA MOVEMENT
 	glm::vec3 direction = glm::vec3(0.0f);
 	if(held(window, GLFW_KEY_W)) direction = direction + camera.front;
@@ -86,12 +88,23 @@ inline void updateInput(
 	if(held(window, GLFW_KEY_D)) direction = direction + glm::normalize(glm::cross(camera.front, camera.up));
 	if(held(window, GLFW_KEY_A)) direction = direction - glm::normalize(glm::cross(camera.front, camera.up));
 	direction.y = 0.0f;
+	if(held(window, GLFW_KEY_SPACE)) direction = direction + glm::vec3(0.0f, 1.0f, 0.0f);
+	if(held(window, GLFW_KEY_LEFT_CONTROL)) direction = direction - glm::vec3(0.0f, 1.0f, 0.0f);
 	if(glm::length(direction) > 0.0f) {
 		direction = glm::normalize(direction);
 		camera.position = camera.position + (CAMERA_SPEED * direction * deltaTime);
 	}
 	camera.position.x = std::clamp(camera.position.x, LOWER_BBOX.x, HIGHER_BBOX.x);
 	camera.position.z = std::clamp(camera.position.z, LOWER_BBOX.z, HIGHER_BBOX.z);
+	camera.position.y = std::clamp(camera.position.y, LOWER_BBOX.y, HIGHER_BBOX.y);
+
+	//SCALING THE MOON
+	if(held(window, GLFW_KEY_M)) scene->moon_scale = scene->moon_scale + MOON_SCALE_SPEED * deltaTime;
+	if(held(window, GLFW_KEY_N)) scene->moon_scale = scene->moon_scale - MOON_SCALE_SPEED * deltaTime;
+
+	//ROTATING THE HEART
+	if(held(window, GLFW_KEY_Z)) scene->heart_angle = scene->heart_angle - HEART_ROTATION_SPEED * deltaTime;
+	if(held(window, GLFW_KEY_X)) scene->heart_angle = scene->heart_angle + HEART_ROTATION_SPEED * deltaTime;
 }
 
 
