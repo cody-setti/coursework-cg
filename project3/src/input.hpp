@@ -1,149 +1,153 @@
-#pragma once
 // --- INPUT ---
-// Handling every key that acts on the scene, the camera's included.
-#include <algorithm>                        // using std::clamp
-#include <glad/gl.h>                        // GLAD: must be included before GLFW.
-#include <GLFW/glfw3.h>                     // GL FrameWork: `GLFWwindow`, key codes and key state.
-#include <glm/ext/quaternion_geometric.hpp>
-#include <glm/glm.hpp>
+// Every keyboard and mouse read: what they CHANGE in the window, scene, camera and rasterization.
 
-#include "scene/camera.hpp"                 // `my::Camera`.
-#include "scene/constants.hpp"              // Constants regarding the objects and their movimentations
-#include "scene/scene.hpp"
+#pragma once                              // `#include` literally pastes a file's text in place.
+                                          // `#pragma once` protects `input.hpp` from being double pasted.
+
+#include <cmath>                          // C Mathematics: `std::atan2()`.
+
+#include <glad/gl.h>                      // GLAD: loads driver-specific OpenGL function pointers at runtime.
+                                          // Must be included before GLFW.
+
+#include <GLFW/glfw3.h>                   // GL FrameWork: reads `window`'s keyboard, mouse cursor and mouse wheel state/events.
+
+#include <glm/glm.hpp>                    // GL Mathematics: provides GLSL-compatible vector and matrix types.
+
+#include "world/scene.hpp"                // `scn::Scene`, `scn::EYE_MIN`, `scn::EYE_MAX`.
+#include "world/camera.hpp"               // `cam::Camera`, `cam::turn()`, `cam::fly()`, `cam::confine()`, `cam::zoom()`.
 
 
-namespace my {
+namespace input {
 
-bool held(GLFWwindow* window, int key) {
-	return glfwGetKey(window, key) == GLFW_PRESS;
+// TYPES
+struct Carryover {
+	bool       pPressed = false          ;
+	glm::dvec2 cursor   = glm::dvec2(0.0);  // Cursor position in the previous frame, in pixels.
+	                                        // Δx and Δy are used to update the yaw and pitch, respectively.
+	double     scrollY  = 0.0            ;
+};
+
+// CONSTANTS
+constexpr float TAU               = 6.28318530718f;  // τ: one full turn, in radians.
+
+constexpr float NAVI_SPEED        = 7.0f          ;  // World units per second.
+
+constexpr float MOUSE_SENSITIVITY = 0.0003f * TAU ;
+constexpr float FLY_SPEED         = 3.0f          ;
+constexpr float FLY_BOOST         = 3.0f          ;
+constexpr float ZOOM_SENSITIVITY  = 0.005f  * TAU ;
+
+
+// FUNCTIONS
+
+// Keys are either up or down: GLFW stores that state, so we poll it.
+// The mouse, however, only reports changes (e.g.: "moved 3 px", "turned 1 notch"), so a running
+// total only exists if someone keeps it:
+//
+// > The cursor's total has a clear meaning: it is a spot on the screen. Therefore, GLFW keeps
+//   it and we can just poll it when needed.
+//
+// > A wheel's total means nothing globally: "+4317 notches since boot". A notch's semantics
+//   depend on WHO receives it (e.g.: a text editor or the camera of a game).
+//   So GLFW keeps no state for the scroll wheel: it is our responsibility to define how notch
+//   events are handled each frame.
+//   `input::scrollCallback` collects them and `input::processInput` gives them meaning, since
+//   WE know our receiver is the camera's FoV.
+//   During `glfwPollEvents()`, GLFW calls `input::scrollCallback` once per notch queued since
+//   the last poll.
+inline void scrollCallback(GLFWwindow* window, double /*dx*/, double dy) {
+	input::Carryover* const carry = (input::Carryover*)glfwGetWindowUserPointer(window);
+	(*carry).scrollY += dy;
+	// `carry` (declared in main.cpp) outlives the render loop. Therefore, following this pointer is safe.
 }
 
-// Called by GLFW once per key EVENT (press, repeat or release), during `glfwPollEvents()`.
-// Suited for toggles, which must change once per press no matter how long the key is held.
-inline void keyCallback(
-	[[maybe_unused]] GLFWwindow* window  ,
-	[[maybe_unused]] int         key     ,  // Which key (e.g.: `GLFW_KEY_P`).
-	[[maybe_unused]] int         scancode,  // Platform-specific key code (unused: `key` is portable).
-	[[maybe_unused]] int         action  ,  // `GLFW_PRESS`, `GLFW_REPEAT` or `GLFW_RELEASE`.
-	[[maybe_unused]] int         mods       // Modifier keys held at the time (Shift, Ctrl, ...).
-) {
-	Scene *scene = static_cast<Scene*>(glfwGetWindowUserPointer(window));
-
-	if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-		glfwSetWindowShouldClose(window, true);
-	if(key == GLFW_KEY_P && action == GLFW_PRESS)
-		scene->wireframe = !scene->wireframe;
-}
-
-//callBack of the mouse position
-inline void mouseCallback(
-	[[maybe_unused]] GLFWwindow* window, 
-	[[maybe_unused]] double xpos, //position x of the mouse in the window
-	[[maybe_unused]]double ypos   //position y of the mouse in the window
-) {
-	Scene *scene = static_cast<Scene*>(glfwGetWindowUserPointer(window));
-	Camera *camera = scene->camera;
-
-	static double last_pos_x = xpos; //static so it holds its value inbetween calls. This is only called at the first time this function is called
-    static double last_pos_y = ypos;
-
-    double xoffset = xpos - last_pos_x;
-    double yoffset = last_pos_y - ypos;
-
-    last_pos_x = xpos;
-    last_pos_y = ypos;
-
-	xoffset *= MOUSE_SENSIVITY;
-	yoffset *= MOUSE_SENSIVITY;
-	camera->yaw += xoffset;
-    camera->pitch += yoffset;
+inline void setUpInput(GLFWwindow* window, input::Carryover& carry) {
+	glfwSetWindowUserPointer(window, &carry)                  ;  // `carry` is now part of `window`'s state.
 	
-	camera->pitch = std::clamp(camera->pitch, -89.0, 89.0);
-	calculateFront(*camera);
+	glfwSetInputMode(
+		window              ,
+		GLFW_CURSOR         ,  // ARG.: Configure cursor's mode.
+		GLFW_CURSOR_DISABLED   // ARG.: Disabled mode...
+		                       // > makes the cursor invisible
+		                       // > holds it inside the window
+		                       // > assigns it a virtual, unlimited position,
+		                       //   as if the window were infinitely wide and tall.
+	);
+	glfwGetCursorPos(window, &carry.cursor.x, &carry.cursor.y);
+	
+	glfwSetScrollCallback(window, input::scrollCallback)      ;
 }
 
-//Capture mouse scroll movement. Used to chance fov
-inline void scrollCallback(
-	[[maybe_unused]] GLFWwindow* window, 
-	[[maybe_unused]] double xoffset, //offset of scroll in x(unused)
-	[[maybe_unused]]double yoffset   //offset of scroll in y(the usual scroll motion)
+inline void processInput(
+	GLFWwindow*       window   ,
+	input::Carryover& carry    ,
+	float             dt       ,
+	scn::Scene&       scene    ,
+	cam::Camera&      camera   ,
+	bool&             wireframe
 ) {
-	Scene *scene = static_cast<Scene*>(glfwGetWindowUserPointer(window));
-	scene->fov = scene->fov - yoffset;
-	scene->fov = std::clamp(scene->fov, MIN_FOV, MAX_FOV);
-}
-
-//Captures if the size of window has changed
-inline void frameBufferSizeCallback(
-	[[maybe_unused]] GLFWwindow* window, 
-	[[maybe_unused]] int width, //window width
-	[[maybe_unused]] int height  //window height
-) {
-	Scene *scene = static_cast<Scene*>(glfwGetWindowUserPointer(window));
-	glViewport(0, 0, width, height); //makes all the pixels in the window be mapped
-	//changes the aspect ratio of the projetion matrix.
-	scene->window_height = height;
-	scene->window_width = width;
-}
-
-
-// Registers the callbacks above. Must be called once, after the window is created.
-inline void setupInput(GLFWwindow* window) {
-	glfwSetKeyCallback(window, my::keyCallback);
-
-	glfwSetCursorPosCallback(window, my::mouseCallback);
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-	glfwSetScrollCallback(window, scrollCallback);
-
-	glfwSetFramebufferSizeCallback(window, frameBufferSizeCallback);
-}
-
-
-
-
-
-// Reads which keys are HELD this frame. Called once per frame, after `glfwPollEvents()`.
-// Suited for continuous actions, which must progress for as long as the key is held.
-inline void updateInput(
-	[[maybe_unused]] my::Camera& camera   ,
-	[[maybe_unused]] GLFWwindow* window   ,
-	[[maybe_unused]] float       deltaTime   // Seconds since the last frame: keeps speeds independent of the frame rate.
-) {
-	Scene *scene = static_cast<Scene*>(glfwGetWindowUserPointer(window));
-
-	//CAMERA MOVEMENT
-	glm::vec3 direction = glm::vec3(0.0f);
-	if(held(window, GLFW_KEY_W)) direction = direction + camera.front;
-	if(held(window, GLFW_KEY_S)) direction = direction - camera.front;
-	if(held(window, GLFW_KEY_D)) direction = direction + glm::normalize(glm::cross(camera.front, camera.up));
-	if(held(window, GLFW_KEY_A)) direction = direction - glm::normalize(glm::cross(camera.front, camera.up));
-	direction.y = 0.0f;
-	if(held(window, GLFW_KEY_SPACE)) direction = direction + glm::vec3(0.0f, 1.0f, 0.0f);
-	if(held(window, GLFW_KEY_LEFT_CONTROL)) direction = direction - glm::vec3(0.0f, 1.0f, 0.0f);
-	if(glm::length(direction) > 0.0f) {
-		direction = glm::normalize(direction);
-		if(held(window, GLFW_KEY_LEFT_SHIFT))
-			camera.position = camera.position + (CAMERA_SPEED_SPRINT * direction * deltaTime);
-		else camera.position = camera.position + (CAMERA_SPEED * direction * deltaTime);
+	// ESCAPE WINDOW
+	if ( glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS ) glfwSetWindowShouldClose(window, GLFW_TRUE);
+	
+	// ROTATE CAMERA
+	glm::dvec2 cursor                                        ;
+	glfwGetCursorPos(window, &cursor.x, &cursor.y)           ;
+	// OBS.: Not multiplied by `dt`: the mouse's movement already IS a distance, not a speed.
+	const float dx = (float)(      cursor.x - carry.cursor.x);  // Cursor position is measured from   ┌─►
+	const float dy = (float)(carry.cursor.y -       cursor.y);  // the top-left corner of the screen. ▼  
+	carry.cursor = cursor;
+	
+	const float dYaw   = input::MOUSE_SENSITIVITY * dx;
+	const float dPitch = input::MOUSE_SENSITIVITY * dy;
+	cam::turn(camera, dYaw, dPitch)                   ;
+	
+	// TRANSLATE CAMERA
+	float flyStep = input::FLY_SPEED * dt                                                    ;
+	if ( glfwGetKey(window, GLFW_KEY_LEFT_SHIFT ) == GLFW_PRESS ) flyStep *= input::FLY_BOOST;
+	
+	glm::vec2 flyDir = glm::vec2(0.0f);  // x: W/S, y: A/D.
+	if ( glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS ) flyDir.x += 1.0f;
+	if ( glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ) flyDir.y -= 1.0f;
+	if ( glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS ) flyDir.x -= 1.0f;
+	if ( glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS ) flyDir.y += 1.0f;
+	
+	if ( flyDir != glm::vec2(0.0f) ) {
+		flyDir = glm::normalize(flyDir);
+		cam::fly(camera, flyStep*flyDir.x , flyStep*flyDir.y);
 	}
-	camera.position.x = std::clamp(camera.position.x, LOWER_BBOX.x, HIGHER_BBOX.x);
-	camera.position.z = std::clamp(camera.position.z, LOWER_BBOX.z, HIGHER_BBOX.z);
-	camera.position.y = std::clamp(camera.position.y, LOWER_BBOX.y, HIGHER_BBOX.y);
-
-	//NAVI MOVEMENT
-	glm::vec3 e_direction = glm::vec3(0.0f);
-	if(held(window, GLFW_KEY_UP)) e_direction = e_direction + camera.front;
-	if(held(window, GLFW_KEY_DOWN)) e_direction = e_direction - camera.front;
-	if(held(window, GLFW_KEY_RIGHT)) e_direction = e_direction + glm::normalize(glm::cross(camera.front, camera.up));
-	if(held(window, GLFW_KEY_LEFT)) e_direction = e_direction - glm::normalize(glm::cross(camera.front, camera.up));
-	e_direction.y = 0.0f;
-	if(glm::length(e_direction) > 0.0f) {
-		e_direction = glm::normalize(e_direction);
-		scene->navi_pos = scene->navi_pos + (NAVI_SPEED * e_direction * deltaTime);
-		scene->navi_last_direction = e_direction;
+	cam::confine(camera, scn::EYE_MIN, scn::EYE_MAX);
+	
+	// ZOOM CAMERA
+	// Scrolling up (+) must narrow the FoV: hence the minus sign.
+	const float dFov          = -input::ZOOM_SENSITIVITY * (float)carry.scrollY;
+	            carry.scrollY = 0.0                                            ;
+	cam::zoom(camera, dFov)                                                    ;
+	
+	// TRANSLATE NAVI
+	const float naviStep = input::NAVI_SPEED * dt;
+	glm::vec2   naviDir  = glm::vec2(0.0f)       ;
+	if ( glfwGetKey(window, GLFW_KEY_UP   ) == GLFW_PRESS ) naviDir.x += 1.0f;
+	if ( glfwGetKey(window, GLFW_KEY_DOWN ) == GLFW_PRESS ) naviDir.x -= 1.0f;
+	if ( glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS ) naviDir.y += 1.0f;
+	if ( glfwGetKey(window, GLFW_KEY_LEFT ) == GLFW_PRESS ) naviDir.y -= 1.0f;
+	
+	if ( naviDir != glm::vec2(0.0f) ) {
+		naviDir               = glm::normalize(naviDir);
+		
+		// Express movement coordinates in terms of world reference.
+		const glm::vec3 front = glm::vec3( glm::cos(camera.yaw), 0.0f, glm::sin(camera.yaw));
+		const glm::vec3 right = glm::vec3(-glm::sin(camera.yaw), 0.0f, glm::cos(camera.yaw));
+		
+		const glm::vec3 move = naviDir.x*front + naviDir.y*right;
+		
+		scene.navi.position  += naviStep * move;
+		scene.navi.angles.y   = std::atan2(move.x, move.z);  // Make navi face the direction she moves in.
 	}
+	
+	// TOGGLE WIREFRAME
+	const bool pPressed = glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS;
+	if ( pPressed && !carry.pPressed ) wireframe = !wireframe;  // Toggle once per press, not once per frame held.
+	carry.pPressed = pPressed;
 }
 
-
-}  // namespace my
+}  // namespace input

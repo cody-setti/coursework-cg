@@ -1,6 +1,5 @@
 # Blender3D MTL File: Hero's Shield.blend
-# Material Count: 4
-newmtl Material.004_Back.png
+newmtl ShieldBack
 Ns 96.078431
 Ka 0.000000 0.000000 0.000000
 Kd 0.640000 0.640000 0.640000
@@ -8,10 +7,9 @@ Ks 0.500000 0.500000 0.500000
 Ni 1.000000
 d 1.000000
 illum 2
-map_Kd Back.png
+map_Kd shield_back.png
 
-
-newmtl Material.002_Top.png
+newmtl ShieldTop
 Ns 96.078431
 Ka 0.000000 0.000000 0.000000
 Kd 0.640000 0.640000 0.640000
@@ -19,10 +17,9 @@ Ks 0.500000 0.500000 0.500000
 Ni 1.000000
 d 1.000000
 illum 2
-map_Kd Top.png
+map_Kd shield_top.png
 
-
-newmtl Material.003_String.png
+newmtl ShieldString
 Ns 96.078431
 Ka 0.000000 0.000000 0.000000
 Kd 0.640000 0.640000 0.640000
@@ -30,10 +27,9 @@ Ks 0.500000 0.500000 0.500000
 Ni 1.000000
 d 1.000000
 illum 2
-map_Kd String.png
+map_Kd shield_string.png
 
-
-newmtl Material.001_Bottom.png
+newmtl ShieldBottom
 Ns 96.078431
 Ka 0.000000 0.000000 0.000000
 Kd 0.640000 0.640000 0.640000
@@ -41,6 +37,4 @@ Ks 0.500000 0.500000 0.500000
 Ni 1.000000
 d 1.000000
 illum 2
-map_Kd Bottom.png
-
-
+map_Kd shield_bottom.png

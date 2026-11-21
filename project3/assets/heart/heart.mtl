@@ -1,0 +1,10 @@
+# Blender3D MTL File: Piece of heart.blend
+newmtl Heart
+Ns 0.000000
+Ka 0.000000 0.000000 0.000000
+Kd 0.046875 0.496875 0.793750
+Ks 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd heart.png

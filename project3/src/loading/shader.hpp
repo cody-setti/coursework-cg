@@ -1,6 +1,9 @@
-#pragma once
-// --- SHADER HELPERS ---
-// Reading, compiling and linking GLSL shader source code.
+// --- SHADER ---
+// Reads GLSL shader source code, then compiles and links them into a shader program.
+
+#pragma once                              // `#include` literally pastes a file's text in place.
+                                          // `#pragma once` protects `shader.hpp` from being double pasted.
+
 #include <string>                         // The `std::string` object is used to manage shader source code.
 #include <sstream>                        // String       Stream: dump file contents into a string using `std::stringstream`.
 #include <fstream>                        // File         Stream: read (.vert, .frag) files        using `std::ifstream`    .
@@ -9,8 +12,9 @@
 #include <glad/gl.h>                      // GLAD: OpenGL function pointers (e.g.: `glCreateShader()`).
 
 
-namespace my {
+namespace shdr {
 
+// FUNCTIONS
 // Reads a whole text file into a string. Returns an empty string on failure.
 inline std::string readFile(const char* path) {
 	std::ifstream file(path);
@@ -30,13 +34,13 @@ inline GLuint compileShader(
 	GLenum      type  ,  // GL_VERTEX_SHADER or GL_FRAGMENT_SHADER.
 	const char* source   // String (GLSL source code) to hand to the driver.
 ) {
-	GLuint shader = glCreateShader(type);
+	const GLuint shader = glCreateShader(type);
 	glShaderSource(
 		shader ,  // PARAM.: ID of the shader object to fill.
 		
 		1      ,  // PARAM.: Number of GLSL source code strings to inject.
 		          // ARG.  : We use just the 1: the contents of the .vert or .frag file.
-
+		
 		&source,  // PARAM.: An array of strings (type: const char**).
 		          // ARG.  : We use a 1-element array: &source.
 		
@@ -61,32 +65,32 @@ inline GLuint compileShader(
 
 // Every shader program (e.g.: one for models, one for the skybox) is built the same way.
 // Reads, compiles and links a vertex + fragment shader pair. Returns 0 on failure.
-inline GLuint createProgram(const char* vertexPath, const char* fragmentPath) {
-	std::string   vertexSource = my::readFile(  vertexPath);
-	std::string fragmentSource = my::readFile(fragmentPath);
+inline GLuint loadProgram(const char* vertexPath, const char* fragmentPath) {
+	const std::string   vertexSource = shdr::readFile(  vertexPath);
+	const std::string fragmentSource = shdr::readFile(fragmentPath);
 	if ( vertexSource.empty() || fragmentSource.empty() ) {
 		return 0;
 	}
-
+	
 	// `.c_str()` exposes the string's contents as the `const char*` OpenGL expects.
-	GLuint   vertexShader = my::compileShader(GL_VERTEX_SHADER  ,   vertexSource.c_str());
-	GLuint fragmentShader = my::compileShader(GL_FRAGMENT_SHADER, fragmentSource.c_str());
+	const GLuint   vertexShader = shdr::compileShader(GL_VERTEX_SHADER  ,   vertexSource.c_str());
+	const GLuint fragmentShader = shdr::compileShader(GL_FRAGMENT_SHADER, fragmentSource.c_str());
 	if ( vertexShader == 0 || fragmentShader == 0 ) {
 		glDeleteShader(  vertexShader);  // Deleting shader 0 is silently ignored by OpenGL.
 		glDeleteShader(fragmentShader);
 		return 0;
 	}
-
+	
 	// Link both stages into one program the GPU can run.
-	GLuint program = glCreateProgram();
+	const GLuint program = glCreateProgram();
 	glAttachShader(program,   vertexShader);
 	glAttachShader(program, fragmentShader);
 	glLinkProgram(program);
-
+	
 	// The program keeps its own copy: the individual stages are no longer needed.
 	glDeleteShader(  vertexShader);
 	glDeleteShader(fragmentShader);
-
+	
 	GLint success_linking;
 	glGetProgramiv(program, GL_LINK_STATUS, &success_linking);
 	if ( !success_linking ) {
@@ -96,8 +100,8 @@ inline GLuint createProgram(const char* vertexPath, const char* fragmentPath) {
 		glDeleteProgram(program);
 		return 0;  // Program ID 0 is reserved for "absence of program".
 	}
-
+	
 	return program;
 }
 
-}  // namespace my
+}  // namespace shdr

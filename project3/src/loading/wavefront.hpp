@@ -1,21 +1,59 @@
-#pragma once
-// --- WAVEFRONT PARSERS ---
-// Parsing Wavefront .obj models and their .mtl materials into plain C++ data (no OpenGL involved).
+// --- WAVEFRONT ---
+// Parses Wavefront .obj models and their .mtl materials into plain C++ data (no OpenGL involved).
+
+#pragma once                              // `#include` literally pastes a file's text in place.
+                                          // `#pragma once` protects `wavefront.hpp` from being double pasted.
+
 #include <vector>                         // The `std::vector` object is used to manage vertex data.
 #include <string>                         // The `std::string` object is used to manage .obj and .mtl lines.
 #include <sstream>                        // String       Stream: parse text from memory  using `std::stringstream`.
 #include <fstream>                        // File         Stream: read (.obj, .mtl) files using `std::ifstream`.
 #include <iostream>                       // Input/Output Stream: output error messages   using `std::cerr`.
-#include <map>                            // The `std::map` object is used to look up image paths by material name.
+#include <map>                            // The `std::map` object is used to look up parsed materials by their names.
 
 #include <glm/glm.hpp>                    // GL Mathematics: `glm::vec3` and `glm::vec2`.
 
 
-namespace my {
+namespace wavef {
 
-// Each vertex in the VBO is stored as x, y, z (position), s, t (texture coordinates) and nx, ny, nz (normal).
-constexpr int FLOATS_PER_VERTEX = 8;
+// TYPES
+// A slice of the VBO associated with a particular texture material.
+struct MaterialRange {
+	std::string mtlName;  // Name given by the `usemtl` line that started the slice.
+	int         first  ;  // Index of the slice's first vertex.
+	int         count  ;  // Number of vertices in the slice.
+};
 
+// The contents of a parsed .obj file: vertex data arranged by its texture materials.
+struct ParsedOBJ {
+	// Flat list of triangle vertices:
+	// { x1,y1,z1,s1,t1,nx1,ny1,nz1,  x2,y2,z2,s2,t2,nx2,ny2,nz2,  ... }.
+	std::vector<float>                vertexData;
+	
+	// One range per `usemtl` line in file order.
+	std::vector<wavef::MaterialRange> ranges    ;
+	
+	// Path to the .mtl file named by the `mtllib` line ("" if there is none).
+	std::string                       mtlPath   ;
+};
+
+// The contents of one `newmtl` block of a parsed .mtl file.
+// OBS.: The defaults stand in for lines the block leaves out.
+struct ParsedMaterial {
+	std::string imagePath ;  // `map_Kd`: path to the texture's image file.
+	
+	// `Kd` and `Ks` are 3D vectors because light is handled as three separate channels (RGB).
+	glm::vec3   Kd  {1.0f};  // White (1.0f) leaves the texture's color untouched.
+	glm::vec3   Ks  {0.0f};  // Black (0.0f) means no highlight.
+	float       Ns = 1.0f ;  // The larger the specular exponent, the smaller and sharper the highlight.
+};
+
+
+// CONSTANTS
+constexpr int FLOATS_PER_VERTEX = 8;  // 3 floats for position, 2 for texture and 3 for normals.
+
+
+// FUNCTIONS
 // Returns the folder part of a file path, including the trailing '/' (e.g.: "assets/hut/hut.obj" -> "assets/hut/").
 inline std::string directoryOf(const std::string& path) {
 	return path.substr(0, path.find_last_of('/') + 1);
@@ -23,29 +61,9 @@ inline std::string directoryOf(const std::string& path) {
 	//       and `npos + 1` wraps around to 0, so the result is "".
 }
 
-// A slice of the VBO associated with a particular texture material.
-struct MaterialRange {
-	std::string material;  // Name given by the `usemtl` line that started the slice.
-	int         first   ;  // Index of the slice's first vertex.
-	int         count   ;  // Number of vertices in the slice.
-};
-
-// The contents of a parsed .obj file: vertex data arranged by its texture materials.
-struct ParsedOBJ {
-	// Flat list of triangle vertices:
-	// { x1,y1,z1,s1,t1, x2,y2,z2,s2,t2, x3,y3,z3,s3,t3, ... }.
-	std::vector<float>             vertexData;
-	
-	// One range per `usemtl` line in file order.
-	std::vector<my::MaterialRange> ranges    ;
-	
-	// Path to the .mtl file named by the `mtllib` line ("" if there is none).
-	std::string                    mtlPath   ;
-};
-
-// Parses a Wavefront .obj file into a `my::ParsedOBJ` struct. Returns an empty struct on failure.
-// OBS.: Only `v`, `vt`, `f`, `usemtl` and `mtllib` lines are read for now, and every face is assumed to be a triangle.
-inline my::ParsedOBJ parseOBJ(const char* path) {
+// Parses a Wavefront .obj file into a `wavef::ParsedOBJ` struct. Returns an empty struct on failure.
+// OBS.: Every face is assumed to be a triangle.
+inline wavef::ParsedOBJ parseOBJ(const char* path) {
 	std::ifstream file(path);
 	if ( !file ) {
 		std::cerr << "Could not open file: " << path << std::endl;
@@ -53,7 +71,7 @@ inline my::ParsedOBJ parseOBJ(const char* path) {
 	}
 	
 	
-	 my::ParsedOBJ          parsed  ;
+	wavef::ParsedOBJ       parsed   ;
 	std::string            line     ;
 	std::vector<glm::vec3> positions;  // Every `v`  line, in file order.
 	std::vector<glm::vec2> texCoords;  // Every `vt` line, in file order.
@@ -80,7 +98,7 @@ inline my::ParsedOBJ parseOBJ(const char* path) {
 			ss >> st.s >> st.t;
 			texCoords.push_back(st);
 		}
-		else if ( prefix == "vn") {
+		else if ( prefix == "vn" ) {
 			glm::vec3 n;
 			ss >> n.x >> n.y >> n.z;
 			normals.push_back(n);
@@ -90,21 +108,17 @@ inline my::ParsedOBJ parseOBJ(const char* path) {
 			std::string mtlFile;
 			ss >> mtlFile;
 			
-			parsed.mtlPath = my::directoryOf(path) + mtlFile;
+			parsed.mtlPath = wavef::directoryOf(path) + mtlFile;
 		}
 		else if ( prefix == "usemtl" ) {
-			// Start a new, still empty, `my::MaterialRange` at the current vertex.
+			// Start a new, still empty, `wavef::MaterialRange` at the current vertex.
 			
-			std::string material;
-			ss >> material;
+			std::string mtlName;
+			ss >> mtlName;
 			
-			int firstVertex = parsed.vertexData.size() / my::FLOATS_PER_VERTEX;
+			const int firstVertex = parsed.vertexData.size() / wavef::FLOATS_PER_VERTEX;
 			
-			parsed.ranges.push_back(
-				{ material   , 
-				  firstVertex, 
-				  0           }
-			);
+			parsed.ranges.push_back( {mtlName, firstVertex, 0} );
 		}
 		else if ( prefix == "f" ) {
 			// Faces that come before any `usemtl` get a range with no material name.
@@ -114,31 +128,37 @@ inline my::ParsedOBJ parseOBJ(const char* path) {
 			
 			for ( std::string corner; ss >> corner; ) {
 				// Each corner looks like `v/vt/vn` (1-based vertex indices).
-				// `std::stoi()` stops at the first '/', so it reads `v` from the start and `vt` from after the first '/'.
-				glm::vec3 pos =                    positions[std::stoi(corner                             ) - 1];
-				glm::vec2 st  =                    texCoords[std::stoi(corner.substr(corner.find('/') + 1)) - 1];
-				glm::vec3 n   = !normals.empty() ?   normals[std::stoi(corner.substr(corner.rfind('/') + 1)) - 1] : glm::vec3(0.0f, 1.0f, 0.0f);
+				// `std::stoi()` stops at the first `/`, so it reads `v` from the start,
+				// `vt` from after the first `/` and `vn` from after the second `/`.
+				const glm::vec3 pos = positions[std::stoi(corner                             ) - 1];
+				const glm::vec2 st  = texCoords[std::stoi(corner.substr(corner. find('/') + 1)) - 1];
+				const glm::vec3 n   = normals  [std::stoi(corner.substr(corner.rfind('/') + 1)) - 1];
 				
-				parsed.vertexData.insert(parsed.vertexData.end(), {pos.x, pos.y, pos.z,  st.s, st.t,  n.x, n.y, n.z});
+				parsed.vertexData.insert(parsed.vertexData.end(), {pos.x, pos.y, pos.z, st.s, st.t, n.x, n.y, n.z});
 				parsed.ranges.back().count++;
 			}
 		}
 	}
+	
+	if ( parsed.vertexData.empty() ) {
+		std::cerr << "No faces found in: " << path << std::endl;
+	}
+	
 	return parsed;
 }
 
-// Reads a Wavefront .mtl file and finds each material's diffuse texture image (its `map_Kd` line).
-// Returns a map from material name to image path, or an empty map on failure.
-// OBS.: Only `newmtl` and `map_Kd` lines are read, and `map_Kd` options (e.g.: `-s 2 2 2`) are not supported.
-inline std::map<std::string, std::string> parseMTL(const char* path) {
+// Reads a Wavefront .mtl file and finds each material's texture image (`map_Kd`) and reflection values (`Kd`, `Ks`, `Ns`).
+// Returns a map from material name to its contents, or an empty map on failure.
+// OBS.: `map_Kd` options (e.g.: `-s 2 2 2`) are not supported.
+inline std::map<std::string, wavef::ParsedMaterial> parseMTL(const char* path) {
 	std::ifstream file(path);
 	if ( !file ) {
 		std::cerr << "Could not open file: " << path << std::endl;
 		return {};
 	}
 	
-	std::map<std::string, std::string> imagePaths;
-	std::string                        material  ;  // Name in the most recently read `newmtl` line.
+	std::map<std::string, wavef::ParsedMaterial> materials;
+	std::string                                  name     ;  // Name in the most recently read `newmtl` line.
 	
 	std::string line;
 	
@@ -149,17 +169,41 @@ inline std::map<std::string, std::string> parseMTL(const char* path) {
 		ss >> prefix;
 		
 		if ( prefix == "newmtl" ) {
-			ss >> material;
+			ss >> name;
+			
+			materials[name] = {};
 		}
 		else if ( prefix == "map_Kd" ) {
-			// The image's name is relative to the .mtl file's folder.
 			std::string imageFile;
 			ss >> imageFile;
 			
-			imagePaths[material] = my::directoryOf(path) + imageFile;
+			materials[name].imagePath = wavef::directoryOf(path) + imageFile;
+		}
+		else if ( prefix == "Kd" ) {
+			glm::vec3 Kd;
+			ss >> Kd.r >> Kd.g >> Kd.b;
+			
+			materials[name].Kd = Kd;
+		}
+		else if ( prefix == "Ks" ) {
+			glm::vec3 Ks;
+			ss >> Ks.r >> Ks.g >> Ks.b;
+			
+			materials[name].Ks = Ks;
+		}
+		else if ( prefix == "Ns" ) {
+			float Ns;
+			ss >> Ns;
+			
+			materials[name].Ns = Ns;
 		}
 	}
-	return imagePaths;
+	
+	if ( materials.empty() ) {
+		std::cerr << "No materials found in: " << path << std::endl;
+	}
+	
+	return materials;
 }
 
-}  // namespace my
+}  // namespace wavef

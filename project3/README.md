@@ -1,4 +1,4 @@
-# Falling moon
+# Falling Moon
 
 ```sh
 make run
@@ -8,39 +8,43 @@ make run
 - Needs GLFW installed on the system. GLAD, GLM and stb_image are vendored in `external/`.
 - The binary goes to `build/main`.
 
+## Controls
+
+| Keys            | Effect                          |
+| --------------- | ------------------------------- |
+| `W` `A` `S` `D` | Fly                             |
+| `LEFT SHIFT`    | Fly faster (hold)               |
+| Cursor          | Look around                     |
+| Scroll Wheel    | Zoom camera in/out              |
+| Arrow keys      | Move Navi (translation)         |
+| `P`             | Toggle the wireframe view       |
+| `Esc`           | Quit                            |
+
 ## Data flow
 
+
 ```
- disk          src/loading/       src/scene/          src/                  
- ────────────  ─────────────────  ──────────────────  ───────────           
- .obj .mtl ──► wavefront.hpp ──┐                                            
-                               ├─►  model.hpp ────┐                         
- .png ───────► texture.hpp ────┘                  │                         
-                          └──────► skybox.hpp ────┤                         
-                                                  │                         
- .vert .frag ► shader.hpp ────────────────────────┼─► main.cpp              
-                                                  │                         
-                                   camera.hpp ────┘                         
-                                       ▲                                    
-                                       └───────────── input.hpp ◄── keyboard
-                                                           ▲ 
-                                  constants.hpp ───────────┤
-                                    scene.hpp   ───────────┘
+ disk             .obj .mtl                .png           .vert .frag
+. . . . . . . . . . . ▼ . . . . . . . . . .  ▼ . . . . . . . . ▼ . . 
+ src/loading/    wavefront.hpp          texture.hpp        shader.hpp
+                       │                  │  │                 │     
+                       ├──────────────────┘  │                 │     
+. . . . . . . . . . .  ▼ . . . . . . . . . . ▼ . . . . . . . . │ . . 
+ src/render/       model.hpp             skybox.hpp            │     
+                       │                     │                 │     
+                       └─────────────────────┴────────────┐    │     
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . ▼ .  ▼ . . 
+ src/                                                   MAIN.CPP     
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . ▲ .  ▲ . . . 
+                 ┌─────────┬────────────────┬───────────┘    │       
+                 │         │                │                │       
+ src/world/      │  scene.hpp           camera.hpp           │       
+                 │   ▲     ▲                ▲                │       
+            transform.hpp  │                │                │       
+                           │                │                │       
+                           └────────────────┴───────────┐    │       
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . │ .  │ . . . 
+ src/                                                  input.hpp     
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . .  ▲  . . . .
+ devices                                        keys, cursor & scroll
 ```
-
-## Commands
-
-### Camera controls
-- <kbd>w</kbd> walk forwards
-- <kbd>s</kbd> walk backwards
-- <kbd>a</kbd> walk to the left
-- <kbd>d</kbd> walk to the right
-- <kbd>Space</kbd> go up
-- <kbd>ctrl</kbd> go down
-- <kbd>shift</kbd> sprint
-
-### Navi controls
-- <kbd>up</kbd> moves Navi away from the camera
-- <kbd>down</kbd> moves Navi towards the camera
-- <kbd>right</kbd> moves Navi to the right of the camera
-- <kbd>left</kbd> moves Navi to the left of the camera

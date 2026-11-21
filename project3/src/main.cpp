@@ -1,12 +1,12 @@
-// --- INCLUSIONS ---
+// --- MAIN ---
+// WHEN everything happens: at start-up, once per frame or at shutdown?
+
 // CLASSIC C LIBRARIES
 #include <cstdlib>                        // C Standard Library:
                                           // Provides human-readable exit codes `EXIT_SUCCESS` and `EXIT_FAILURE`.
 
 // CLASSIC C++ LIBRARIES
-#include <glm/trigonometric.hpp>
 #include <iostream>                       // Input/Output Stream: output error messages using `std::cerr`.
-#include <vector>
 
 // COMPUTER GRAPHICS LIBRARIES
 #include <glad/gl.h>                      // GLAD: loads driver-specific OpenGL function pointers at runtime.
@@ -15,79 +15,36 @@
 #include <GLFW/glfw3.h>                   // GL FrameWork: creates an OS window for OpenGL to draw into.
 
 #include <glm/glm.hpp>                    // GL Mathematics: provides GLSL-compatible vector and matrix types.
-#include <glm/ext/matrix_transform.hpp>   // e.g.: `translate()`, `rotate()`, `scale()`, `lookAt()`.
-#include <glm/ext/matrix_clip_space.hpp>  // e.g.: `perspective()`.
-#include <ostream>
+
 
 // PROJECT HEADERS
-#include "loading/shader.hpp"             // Building shader programs from GLSL source files.
-#include "scene/model.hpp"                // Uploading textured models to the GPU and drawing them.
-#include "scene/skybox.hpp"               // Uploading the sky cube to the GPU and drawing it.
-#include "scene/camera.hpp"               // Camera state and View matrix.
-#include "input.hpp"                      // Keys that act on the scene.
-#include "scene/constants.hpp" 			  // Constants regarding the objects and their movimentations
-#include "scene/scene.hpp"               // Struct scene for glfw's Window User Pointer
+#include "loading/shader.hpp"             // Builds shader programs from GLSL source files.
+
+#include "render/model.hpp"               // Uploads textured models to the GPU and draws them.
+#include "render/skybox.hpp"              // Uploads the sky cube to the GPU and draws it.
+
+#include "world/transform.hpp"            // Placement of model instances, and their M.
+#include "world/scene.hpp"                // WHAT is in the world and WHERE it stands.
+#include "world/camera.hpp"               // A flying eye, and its V and P.
+
+#include "input.hpp"                      // Every keyboard and mouse read.
 
 
-// --- CONSTANTS ---
-namespace my {
-
-// `constexpr` is a constant whos value can be resolved at compile time. 
-// Used only for defining the first window size
-constexpr int WINDOW_WIDTH  = 1280;
-constexpr int WINDOW_HEIGHT =  720;
-
-// OBS.: Paths are relative to the directory the program is RUN from (the project root).
-const char*  MODEL_VERT_PATH = "shaders/textured.vert";
-const char*  MODEL_FRAG_PATH = "shaders/textured.frag";
-
-const char* SKYBOX_VERT_PATH = "shaders/skybox.vert"  ;
-const char* SKYBOX_FRAG_PATH = "shaders/skybox.frag"  ;
-
-// Sky faces, in `my::loadCubemap()`'s order: +X, -X, +Y, -Y, +Z, -Z.
-const char* const SKYBOX_FACE_PATHS[6] = {
-	"assets/skybox/right.png" ,
-	"assets/skybox/left.png"  ,
-	"assets/skybox/top.png"   ,
-	"assets/skybox/bottom.png",
-	"assets/skybox/front.png" ,
-	"assets/skybox/back.png"  ,
-};
-
-// External models file paths.
-const char*       GRASS_OBJ_PATH = "assets/grass/grass.obj"                      ;
-const char*        PINE_OBJ_PATH = "assets/pine/pine.obj"                        ;
-const char*         OAK_OBJ_PATH = "assets/oak/oak.obj"                          ;
-const char*        MOON_OBJ_PATH = "assets/moon/moon.obj"                        ;
-const char*        NAVI_OBJ_PATH = "assets/navi/navi.obj"                        ;
-const char*      SHIELD_OBJ_PATH = "assets/shield/shield.obj"                    ;
-
-// Transitional model  file path.
-const char*         HUT_OBJ_PATH = "assets/hut/hut.obj"                          ;
-
-// Internal models file paths.
-const char*      CANDLE_OBJ_PATH = "assets/candle/candle.obj"                    ;
-const char*       HEART_OBJ_PATH = "assets/piece_of_heart/Piece_of_heart.obj"    ;
-const char*         POT_OBJ_PATH = "assets/pot/zelda_pot.obj"                    ;
-const char*        MASK_OBJ_PATH = "assets/mask_salesman/Happy_Mask_Salesman.obj";
-
-// Uniform locations, as fixed by the `layout (location = ...)` qualifiers in "shaders/textured.vert".
-// OBS.: "shaders/skybox.vert" uses the same slots for V and P.
-constexpr GLint MODEL_LOCATION = 0;
-constexpr GLint  VIEW_LOCATION = 1;
-constexpr GLint  PROJ_LOCATION = 2;
-
-}  // namespace my
+constexpr float TAU = 6.28318530718f;  // τ: one full turn, in radians.
 
 
-// --- MAIN ---
 int main() {
-	// --- OPENGL CONTEXT CREATION ---
+	
+	// █▀ ▀█▀ ▄▀█ █▀█ ▀█▀ ▄▄ █ █ █▀█
+	// ▄█  █  █▀█ █▀▄  █     █▄█ █▀▀
+	// START-UP                     
+	
+	// --- WINDOW AND CONTEXT CREATION ---
 	// `glfwInit()` connects GLFW to the display system of the SPECIFIC
 	// machine that will display the graphics described in this code.
 	if ( !glfwInit() ) {
 		std::cerr << "GLFW failed to initialize." << std::endl;
-		return EXIT_FAILURE;
+		return EXIT_FAILURE                                   ;
 	}
 	
 	// Hints specify the configurations we want for our OpenGL context upon window creation.
@@ -96,29 +53,21 @@ int main() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6                       );  // Request OpenGL version x.6.
 	glfwWindowHint(GLFW_OPENGL_PROFILE       , GLFW_OPENGL_CORE_PROFILE);  // Explicitly disable deprecated legacy functions.
 	
-	GLFWwindow* window = glfwCreateWindow(
-		my::WINDOW_WIDTH  ,
-		my::WINDOW_HEIGHT ,
-		"Falling Moon"    ,  // PARAM.: Window title.
-		nullptr           ,  // ARG.  : No fullscreen monitor.
-		nullptr              // ARG.  : Don't share resources with another context.
+	GLFWwindow* const window = glfwCreateWindow(  //  `type* const` sets the pointer's target in stone: Falling Moon.
+	                                              //  `const type*` would make the window immutable.
+		1920          ,  // PARAM.: Window width.
+		1080          ,  // PARAM.: Window height.
+		"Falling Moon",  // PARAM.: Window title.
+		nullptr       ,  // ARG.  : No fullscreen monitor.
+		nullptr          // ARG.  : Don't share resources with another context.
 	);
 	if ( window == nullptr ) {
 		std::cerr << "Window creation failed." << std::endl;
-		glfwTerminate();
-		return EXIT_FAILURE;
+		glfwTerminate()                                    ;
+		return EXIT_FAILURE                                ;
 	}
-	
-	// --- OPENGL FUNCTION CALLS ---
-	// Set our window as context for OpenGL calls.
+	// Set "Falling Moon" as context for OpenGL calls.
 	glfwMakeContextCurrent(window);
-	
-	// Ask the driver for the address of every OpenGL function.
-	if ( !gladLoadGL(glfwGetProcAddress) ) {
-		std::cerr << "GLAD failed to load OpenGL functions." << std::endl;
-		glfwTerminate();
-		return EXIT_FAILURE;
-	}
 	
 	// OBS.: GLFW uses double buffering to avoid displaying half-drawn frames.
 	glfwSwapInterval(
@@ -126,244 +75,234 @@ int main() {
 		  //       to avoid thousands of unnecessary drawings that aren't displayed.
 	);
 	
-	// Register the key callbacks GLFW will call during `glfwPollEvents()`.
-	my::setupInput(window);
+	
+	// --- LOAD OPENGL FUNCTION CALLS ---
+	// Ask the driver for the address of every OpenGL 4.6 function.
+	if ( !gladLoadGL(glfwGetProcAddress) ) {
+		std::cerr << "GLAD failed to load OpenGL functions." << std::endl;
+		glfwTerminate()                                                  ;
+		return EXIT_FAILURE                                              ;
+	}
+	
+	
+	// --- RENDER SETTINGS ---
+	bool wireframe = false ;  // When set to `true`, models are displayed by their meshes.
+	
+	glEnable(GL_DEPTH_TEST);  // Overwrite a pixel only if the fragment's depth is lower (or equal) to the pixel's depth.
+	glDepthFunc(GL_LEQUAL) ;  // The sky is drawn at depth 1.0, exactly the value `glClear()` resets the depth buffer to.
+	                          // The default test (`GL_LESS`) would discard it there: `GL_LEQUAL` lets "equally far" pass too.
 	
 	
 	// --- BUILD SHADER PROGRAMS ---
-	GLuint shaderProgram = my::createProgram(my::MODEL_VERT_PATH , my::MODEL_FRAG_PATH );
-	GLuint skyboxProgram = my::createProgram(my::SKYBOX_VERT_PATH, my::SKYBOX_FRAG_PATH);
-	if ( shaderProgram == 0 || skyboxProgram == 0 ) {
-		glfwTerminate();
+	// Shaders are quick to build and fail fast, meanwhile loading models is expensive.
+	// For that reason, we build the shaders first.
+	
+	// OBS.: Paths are relative to the directory the program is RUN from (the project root).
+	const GLuint modelProgram  = shdr::loadProgram("shaders/model.vert" , "shaders/model.frag" );
+	const GLuint skyboxProgram = shdr::loadProgram("shaders/skybox.vert", "shaders/skybox.frag");
+	if ( modelProgram == 0 || skyboxProgram == 0 ) {
+		glfwTerminate()    ;
 		return EXIT_FAILURE;
 	}
 	
 	
-	// --- MODELS + SKYBOX ---
-	// External models.
-	my::Model grass    = my::loadModel(my::GRASS_OBJ_PATH );
-	my::Model pine     = my::loadModel(my::PINE_OBJ_PATH  );
-	my::Model oak      = my::loadModel(my::OAK_OBJ_PATH   );
-	my::Model moon     = my::loadModel(my::MOON_OBJ_PATH  );
-	my::Model navi     = my::loadModel(my::NAVI_OBJ_PATH  );
-	my::Model shield   = my::loadModel(my::SHIELD_OBJ_PATH);
+	// --- CAMERA BUFFER ---
+	// V and P live in ONE buffer THAT BELONGS TO THE CONTEXT. Therefore, both shader programs may read it (see the `Camera` block in their vertex shaders).
+	// If V and P were stored as plain uniforms, AND, THEREFORE, BELONGED TO SPECIFIC SHADERS, we'd need one upload of each PER PROGRAM.
+	GLuint cameraBuffer;
+	glCreateBuffers(1, &cameraBuffer);
+	glNamedBufferStorage(    // Creates IMMUTABLE storage. The size is fixed for good.
+		cameraBuffer                              ,
+		2 * sizeof(glm::mat4) + sizeof(glm::vec4) ,  // PARAM.: Buffer's size in bytes.
+		                                             // ARG.  : V, then P, then the eye position.
+		                                             // OBS.  : `std140` aligns a vec3 like a vec4 (16 bytes), and the
+		                                             //         block's size is rounded up to match: 128 + 16 = 144.
+		nullptr                                   ,  // ARG.  : No initial data: the render loop writes it.
+		GL_DYNAMIC_STORAGE_BIT                       // ARG.  : Allow `glNamedBufferSubData()` to rewrite its contents later.
+	);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, cameraBuffer);  // Hook it to binding point 0.
 	
-	// Transitional model.
-	my::Model hut      = my::loadModel(my::HUT_OBJ_PATH   );
 	
-	// Internal models.
-	my::Model candle   = my::loadModel(my::CANDLE_OBJ_PATH);
-	my::Model pot      = my::loadModel(my::POT_OBJ_PATH   );
-	my::Model salesman = my::loadModel(my::MASK_OBJ_PATH  );
-	my::Model heart    = my::loadModel(my::HEART_OBJ_PATH );
-	
-	my::Skybox sky     = my::loadSkybox(my::SKYBOX_FACE_PATHS);
-	if (
-		 grass.VAO == 0 ||     pine.VAO == 0 ||   oak.VAO == 0 ||   moon.VAO == 0 || navi.VAO == 0 || shield.VAO == 0 ||
-		   hut.VAO == 0 ||
-		   pot.VAO == 0 || salesman.VAO == 0 || heart.VAO == 0 || candle.VAO == 0 ||
-		   sky.VAO == 0
-	) {
-		glfwTerminate();
+	// --- LOAD MODELS AND SKY BOX ---
+	// Load every model used in the scene into GPU memory.
+	mdl::Model models[scn::MODEL_COUNT];
+	for ( int id = 0; id < scn::MODEL_COUNT; id++ ) {
+		models[id] = mdl::loadModel(scn::OBJ_PATHS[id]);
+		if ( models[id].VAO == 0 ) {
+			std::cerr << "Scene aborted: failed to load model " << scn::OBJ_PATHS[id] << std::endl;
+			glfwTerminate()    ;
+			return EXIT_FAILURE;
+		}
+	}
+	// Load the sky box used in the scene into GPU memory.
+	sky::Skybox sky = sky::loadSkybox(scn::SKYBOX_FACE_PATHS);
+	if ( sky.VAO == 0 ) {
+		std::cerr << "Scene aborted: failed to load sky box." << std::endl;
+		glfwTerminate()    ;
 		return EXIT_FAILURE;
 	}
 	
 	
-	// --- RENDER LOOP ---
-	glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
-	glEnable(GL_DEPTH_TEST);
-	// The sky is drawn at depth 1.0, exactly the value `glClear()` resets the depth buffer to.
-	// The default test (`GL_LESS`) would discard it there: `GL_LEQUAL` lets "equally far" pass too.
-	glDepthFunc(GL_LEQUAL);
+	// --- WORLD STATE ---
+	scn::Scene scene;
+	scn::arrangeScene(scene);
+	cam::Camera camera = cam::createCamera(scn::EYE_START, scn::TRGT_START);
 	
-	my::Camera camera = {
-		my::CAMERA_POS_INI  ,  // Position.
-		my::CAMERA_FRONT_INI,  // Front
-		my::CAMERA_UP          // Up.
-	};
-
-	my::Scene scene = {
-		&camera
-	}; //creates a scene with the camera we just created 
-
-	glfwSetWindowUserPointer(window, static_cast<void*>(&scene));
-
 	
-	float lastTime = (float)glfwGetTime();
+	// --- INPUT ---
+	input::Carryover carry;
+	input::setUpInput(window, carry);
+	
+	
+	// --- FRAME CLOCK ---
+	// Must come last in START-UP, so that the first frame starts immediately after this time recording.
+	double lastTime = glfwGetTime();
+	// Incrementing the camera's (or a model's) position each frame by a constant Δx would make it
+	// so it moves much faster in high-end monitors. Suppose Δx = 0.05 m, then:
+	//                                                                     
+	//  Monitor │ Distance walked in a frame (Δx) │ Distance walked in 1s  
+	// ─────────┼─────────────────────────────────┼────────────────────────
+	//   30 Hz  │              0.05 m             │  30 × 0.05   = 1.5 m   
+	// ─────────┼─────────────────────────────────┼────────────────────────
+	//  144 Hz  │              0.05 m             │ 144 × 0.05   = 7.2 m   
+	//                                                                     
+	// To be hardware agnostic, we use Δx = speed * Δt, where speed is constant but Δt is the
+	// time between consecutive frames. Suppose speed = 3 m/s, then:
+	//                                                                     
+	//  Monitor │ Distance walked in a frame (Δx) │ Distance walked in 1s  
+	// ─────────┼─────────────────────────────────┼────────────────────────
+	//   30 Hz  │        3 × 1/30  = 0.1          │  30 × 0.1    = 3 m     
+	// ─────────┼─────────────────────────────────┼────────────────────────
+	//  144 Hz  │        3 × 1/144 ≈ 0.0208       │ 144 × 0.0208 = 3 m     
+	//                                                                     
+	// In high-end monitors, although frames come around more often, each one covers less time.
+	//
+	// As a matter of fact, since we are measuring frame-rate via clock readings, all works
+	// well even for an unstable frame-rate.
+	
+	
+	// █▀█ █▀▀ █▄ █ █▀▄ █▀▀ █▀█   █   █▀█ █▀█ █▀█
+	// █▀▄ ██▄ █ ▀█ █▄▀ ██▄ █▀▄   █▄▄ █▄█ █▄█ █▀▀
+	// RENDER LOOP                               
 	
 	while ( !glfwWindowShouldClose(window) ) {
+		// --- FRAME TIME ---
+		const double time = glfwGetTime();
+		const float  dt   = glm::min((float)(time - lastTime), 0.1f);
+		// OBS.: `dt` is capped at 0.1s because, otherwise, after any stall (e.g.: minimized window, dragged window)
+		//       a single frame would carry the whole pause and teleport everything that moves.
+		//       The only downside is that the scene runs in slow-mo at < 10 FPS. Unlikely for current hardware...
+		lastTime = time;
+		
+		
+		// --- POLL EVENTS ---
+		glfwPollEvents();
+		
+		
+		// --- FRAME BUFFER SIZE ---
+		// The variables below permit dynamic window sizing each render.
+		int fbWidth, fbHeight;
+		glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+		// We measure the frame buffer dimensions, given in physical pixels, instead of the window
+		// ones, given in logical units, because pixel density varies between monitors.
+		
+		// A minimized window reports 0×0: there is nothing to draw into.
+		if ( fbWidth == 0 || fbHeight == 0 ) {
+			glfwWaitEvents();  // Sleep until GLFW receives an event (e.g.: the window being restored),
+			continue;          // then start the frame over.
+		}
+		
+		
+		// --- UPDATE WORLD ---
+		// Input-dependent changes.
+		input::processInput(window, carry, dt, scene, camera, wireframe);
+		// Unconditional changes.
+		scene.heart.angles.y += (0.3f * TAU) * dt;
+		
+		
+		// --- CAMERA DATA ---
+		const float     aspect            = (float)fbWidth / (float)fbHeight;
+		const glm::mat4 cameraMatrices[2] = {
+			// Same memory layout as the `std140` block in the vertex shader programs.
+			cam::viewMatrix(camera)        ,  // Offset  0: V.
+			cam::projMatrix(camera, aspect)   // Offset 64: P.
+		};
+		glNamedBufferSubData(cameraBuffer, 0                     , sizeof(cameraMatrices), cameraMatrices);
+		glNamedBufferSubData(cameraBuffer, sizeof(cameraMatrices), sizeof(glm::vec3)     , &camera.eye   );
+		
+		
+		// --- VIEWPORT ---
+		// Map the drawing onto the whole frame buffer.
+		glViewport(0, 0, fbWidth, fbHeight);
+		
+		
+		// --- MESH INSPECTION ---
+		glPolygonMode(  // Here, "polygon" means the triangle primitives models (and the sky box) are built from.
+			GL_FRONT_AND_BACK            ,  // ARG.: Applies to triangles facing the camera AND facing away from it (i.e.: all triangles).
+			                                // OBS.: `GL_FRONT_AND_BACK` is the only value core profile accepts;
+			                                //       `GL_FRONT` and `GL_BACK` are ignored.
+			
+			wireframe ? GL_LINE : GL_FILL   // ARG.:
+			                                // > `GL_LINE`: draw only the triangle edges.
+			                                // > `GL_FILL`: draw their whole surface (the usual drawing mode).
+		);
+		
+		
+		// --- CLEAR FRAME BUFFER ---
 		// Reset pixel values in the frame buffer before drawing a new frame.
 		// Prevent garbage from previous frames corrupting the current drawing.
 		glClear(
-			GL_COLOR_BUFFER_BIT |  // Paint every pixel with the color specified in `glClearColor()`.
+			GL_COLOR_BUFFER_BIT |  // Paint every pixel black.
 			GL_DEPTH_BUFFER_BIT    // Reset every pixel's depth to "infinitely far".
 		);
 		
 		
-		// PROCESS KEY PRESSES, CLICKS, ETC...
-		glfwPollEvents();
+		// --- DRAW MODELS ---
+		// OBS.: `glUseProgram()` picks which shaders run for every draw call after it.
+		glUseProgram(modelProgram);
 		
-		glPolygonMode(
-			GL_FRONT_AND_BACK,
-			scene.wireframe ? GL_LINE : GL_FILL           // Draw only the edges ("wires") between
-		);     
-
-		float currentTime = (float)glfwGetTime();
-		float deltaTime   = currentTime - lastTime;
-		lastTime          = currentTime;
+		// Lights: set once per frame, shared by every model drawn below.
+		glUniform3fv(mdl::MODEL_AMBIENT_LOCATION    , 1, &scn::AMBIENT_LIGHT[0]   );
+		glUniform3fv(mdl::MODEL_LIGHT_POS_LOCATION  , 1, &scene.navi.position[0]  );  // Navi carries the light.
+		glUniform3fv(mdl::MODEL_LIGHT_COLOR_LOCATION, 1, &scn::NAVI_LIGHT_COLOR[0]);
 		
-		my::updateInput(camera, window, deltaTime);
-
-		glm::mat4 P = glm::perspective(
-			glm::radians(scene.fov)                               , // Vertical FoV.
-			(float)scene.window_width / (float)scene.window_height, // Aspect ratio (window width/height).
-			0.1f                                            , // Near plane.
-			100.0f                                              // Far  plane.
-		);
-
-		// Uniform values are stored PER PROGRAM: both programs need their own copy of P (and of V, in the loop).
-		// OBS.: `glUniform*()` writes into the program currently in use.
-		// P never changes: upload it once.
-		glUseProgram(shaderProgram);
-		glUniformMatrix4fv(my::PROJ_LOCATION, 1, GL_FALSE, &P[0][0]);
-		
-		glUseProgram(skyboxProgram);
-		glUniformMatrix4fv(my::PROJ_LOCATION, 1, GL_FALSE, &P[0][0]);
-		
-
-		// V changes whenever the camera does: rebuild and upload it every frame.
-		glm::mat4 V = my::viewMatrix(camera);
-		glUseProgram(shaderProgram);
-		glUniformMatrix4fv(my::VIEW_LOCATION, 1, GL_FALSE, &V[0][0]);
-		glUseProgram(skyboxProgram);
-		glUniformMatrix4fv(my::VIEW_LOCATION, 1, GL_FALSE, &V[0][0]);
-		
-		
-		// MODELS
-		glUseProgram(shaderProgram);
-		glm::mat4 M;
-
-		// GRASS
-		M = glm::mat4(1.0f);
-		M = glm::translate(M,                            my::GRASS_POS);
-		M = glm::scale(M, my::GRASS_SCALE);
-		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		my::drawModel(grass);
-		
-		// PINE
-		for(int i = 0; i < my::PINE_POS.size(); i++){
-			M = glm::mat4(1.0f);
-			M = glm::translate(M,                          my::PINE_POS[i]);
-			M = glm::scale(M, 							   my::PINE_SCALE[i]);
-			glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-			my::drawModel(pine);
+		// Static models: M was computed once, in `scn::arrangeScene()`.
+		for ( int id = 0; id < scn::MODEL_COUNT; id++ ) {
+			for ( const glm::mat4& M : scene.statics[id] ) {
+				mdl::drawModel(models[id], M);
+			}
 		}
-		
-		// OAK
-		for(int i = 0; i < my::OAK_POS.size(); i++){
-			M = glm::mat4(1.0f);
-			M = glm::translate(M,                            my::OAK_POS[i]);
-			M = glm::scale(M, 							   my::OAK_SCALE[i]);
-			glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-			my::drawModel(oak);
-		
-		}
-		
-		// MOON OBJECT
-		M = glm::mat4(1.0f);
-		M = glm::translate(M, my::MOON_POS  );
-		M = glm::scale    (M, my::MOON_SCALE);
-		M = glm::rotate   (M, glm::radians(-60.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-		M = glm::rotate   (M, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-		M = glm::rotate   (M, glm::radians( 90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		my::drawModel(moon);
-		
-		// NAVI
-		M = glm::mat4(1.0f);
-		M = glm::translate(M, scene.navi_pos);
-		float theta = glm::atan(scene.navi_last_direction.z, scene.navi_last_direction.x);
-		M = glm::rotate   (M, -theta, glm::vec3(0.0f, 1.0f, 0.0f));
-		M = glm::scale    (M, my::NAVI_SCALE);
-		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		my::drawModel(navi);
-		
-		// SHIELD
-		M = glm::mat4(1.0f);
-		M = glm::translate(M,                            my::SHIELD_POS);
-		M = glm::rotate(M, my::SHIELD_ANGLES.z, glm::vec3(0.0f, 0.0f, 1.0f));
-		M = glm::rotate(M, my::SHIELD_ANGLES.y, glm::vec3(0.0f, 1.0f, 0.0f));
-		M = glm::scale(M, my::SHIELD_SCALE);
-		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		my::drawModel(shield);
-		
-		// HUT
-		M = glm::mat4(1.0f);
-		M = glm::translate(M,                            my::HUT_POS);
-		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		my::drawModel(hut);
-
-		M = glm::mat4(1.0f);
-		M = glm::translate(M, my::CANDLE_POS  );
-		M = glm::scale    (M, my::CANDLE_SCALE);
-		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		my::drawModel(candle);
-		
-		// SALESMAN
-		M = glm::mat4(1.0f);
-		M = glm::translate(M,                            my::MASK_POS);
-		M = glm::scale(M, my::MASK_SCALE);
-		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		my::drawModel(salesman);
-		
-		// POTS
-		M = glm::mat4(1.0f);
-		M = glm::translate(M,                            my::POT1_POS);
-		M = glm::scale(M, my::POT_SCALE);
-		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		my::drawModel(pot);
-		
-		M = glm::mat4(1.0f);
-		M = glm::translate(M,                            my::POT2_POS);
-		M = glm::scale(M, my::POT_SCALE);
-		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		my::drawModel(pot);
-		
-		// HEART
-		M = glm::mat4(1.0f);
-		M = glm::translate(M, my::HEART_POS  );
-		M = glm::scale    (M, my::HEART_SCALE);
-		glUniformMatrix4fv(my::MODEL_LOCATION, 1, GL_FALSE, &M[0][0]);
-		my::drawModel(heart);
+		// Dynamic models: M is computed now, from whatever the keyboard made of the transform.
+		mdl::drawModel(models[scn::MODEL_NAVI ], xform::modelMatrix(scene.navi ));
+		mdl::drawModel(models[scn::MODEL_HEART], xform::modelMatrix(scene.heart));
 		
 		
-		// SKY BOX
+		// --- DRAW SKY BOX ---
 		// Drawn last: wherever a model already stands, the depth test discards the sky's (farther) fragments,
 		// saving the work of shading them.
 		glUseProgram(skyboxProgram);
-		my::drawSkybox(sky);
+		sky::drawSkybox(sky);
 		
-		// DISPLAY FRAME
+		
+		// --- DISPLAY FRAME ---
 		// Show the finished frame (back buffer becomes front buffer).
 		glfwSwapBuffers(window);
 	}
 	
-	// --- SHUTDOWN ---
-	my::deleteModel (grass    );
-	my::deleteModel (pine     );
-	my::deleteModel (oak      );
-	my::deleteModel (moon     );
-	my::deleteModel (navi     );
-	my::deleteModel (shield   );
-	my::deleteModel (hut      );
-	my::deleteModel (candle   );
-	my::deleteModel (heart    );
-	my::deleteModel (salesman );
-	my::deleteModel (pot      );
-	my::deleteSkybox(sky      );
 	
-	glDeleteProgram(shaderProgram);
+	// █▀ █ █ █ █ ▀█▀ █▀▄ █▀█ █ █ █ █▄ █
+	// ▄█ █▀█ █▄█  █  █▄▀ █▄█ ▀▄▀▄▀ █ ▀█
+	// SHUTDOWN                         
+	
+	sky::deleteSkybox(sky);
+	for ( mdl::Model& model : models ) {
+		mdl::deleteModel(model);
+	}
+	
+	glDeleteBuffers(1, &cameraBuffer);
+	
 	glDeleteProgram(skyboxProgram);
+	glDeleteProgram(modelProgram);
 	
 	glfwTerminate();
 	
