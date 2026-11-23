@@ -106,9 +106,18 @@ int main() {
 	}
 	
 	
-	// --- CAMERA BUFFER ---
-	// V and P live in ONE buffer THAT BELONGS TO THE CONTEXT. Therefore, both shader programs may read it (see the `Camera` block in their vertex shaders).
-	// If V and P were stored as plain uniforms, AND, THEREFORE, BELONGED TO SPECIFIC SHADERS, we'd need one upload of each PER PROGRAM.
+	// --- DEFINE SHADER'S CONSTANT UNIFORMS ---
+	// `static_assert` checks a boolean constant expression at compile time.
+	static_assert(scn::POINT_LIGHT_COUNT <= mdl::MAX_POINT_LIGHTS, "The scene has more lights than the model program can hold.");
+	glProgramUniform3fv(modelProgram, mdl::LOC_AMBIENT_LIGHT    , 1                     , &scn::AMBIENT_LIGHT[0]         );
+	glProgramUniform1i (modelProgram, mdl::LOC_PLIGHT_COUNT     ,                          scn::POINT_LIGHT_COUNT        );
+	glProgramUniform3fv(modelProgram, mdl::LOC_PLIGHTS_COLOR    , scn::POINT_LIGHT_COUNT, &scn::POINT_LIGHTS_COLOR[0][0] );
+	glProgramUniform1fv(modelProgram, mdl::LOC_PLIGHTS_HALF_DIST, scn::POINT_LIGHT_COUNT, &scn::POINT_LIGHTS_HALF_DIST[0]);
+	
+	
+	// --- CREATE A CAMERA BUFFER ---
+	// V, P and the camera eye live in ONE buffer THAT BELONGS TO THE CONTEXT. Therefore, both shader programs may read it.
+	// If they were stored as plain uniforms, AND, THEREFORE, BELONGED TO SPECIFIC SHADERS, we'd need one upload of each PER PROGRAM.
 	GLuint cameraBuffer;
 	glCreateBuffers(1, &cameraBuffer);
 	glNamedBufferStorage(    // Creates IMMUTABLE storage. The size is fixed for good.
@@ -143,18 +152,18 @@ int main() {
 	}
 	
 	
-	// --- WORLD STATE ---
+	// --- INITIALIZE WORLD STATE ---
 	scn::Scene scene;
 	scn::arrangeScene(scene);
 	cam::Camera camera = cam::createCamera(scn::EYE_START, scn::TRGT_START);
 	
 	
-	// --- INPUT ---
+	// --- INITIALIZE INPUT ---
 	input::Carryover carry;
 	input::setUpInput(window, carry);
 	
 	
-	// --- FRAME CLOCK ---
+	// --- INITIALIZE FRAME CLOCK ---
 	// Must come last in START-UP, so that the first frame starts immediately after this time recording.
 	double lastTime = glfwGetTime();
 	// Incrementing the camera's (or a model's) position each frame by a constant Δx would make it
@@ -199,7 +208,7 @@ int main() {
 		glfwPollEvents();
 		
 		
-		// --- FRAME BUFFER SIZE ---
+		// --- MEASURE FRAME BUFFER ---
 		// The variables below permit dynamic window sizing each render.
 		int fbWidth, fbHeight;
 		glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
@@ -216,11 +225,20 @@ int main() {
 		// --- UPDATE WORLD ---
 		// Input-dependent changes.
 		input::processInput(window, carry, dt, scene, camera, wireframe);
+		
 		// Unconditional changes.
-		scene.heart.angles.y += (0.3f * TAU) * dt;
+		// Candle flicker: two sines with unrelated frequencies never settle into a visible rhythm.
+		const float flicker    = 1.0f  + 0.08f * glm::sin((2.3f * TAU) * (float)time)
+		                               + 0.05f * glm::sin((5.9f * TAU) * (float)time)        ;
+		scene.flame.scale.y    = scene.flame.scale.x * flicker                               ;
+		scene.flame.angles.z   = (0.01f * TAU) * glm::sin((1.1f * TAU) * (float)time)        ;
+		
+		// Heart spins.
+		scene.heart.angles.y   = (0.25f * TAU) + (0.3f * TAU) * (float)time                  ;
+		scene.heart.position.y =  0.4f         + 0.05f * glm::sin((0.6f * TAU) * (float)time);
 		
 		
-		// --- CAMERA DATA ---
+		// --- UPDATE CAMERA DATA ---
 		const float     aspect            = (float)fbWidth / (float)fbHeight;
 		const glm::mat4 cameraMatrices[2] = {
 			// Same memory layout as the `std140` block in the vertex shader programs.
@@ -231,12 +249,29 @@ int main() {
 		glNamedBufferSubData(cameraBuffer, sizeof(cameraMatrices), sizeof(glm::vec3)     , &camera.eye   );
 		
 		
-		// --- VIEWPORT ---
+		// --- UPDATE LIGHTS ---
+		const glm::vec3 pLightsPos[scn::POINT_LIGHT_COUNT] = {
+			scene.navi .position            ,
+			glm::vec3(-1.51f, 0.36f, -0.81f),  // Candle flame.
+			scene.heart.position            ,
+		};
+		glProgramUniform3fv(modelProgram, mdl::LOC_PLIGHTS_POS, scn::POINT_LIGHT_COUNT, &pLightsPos[0][0]);
+		
+		const glm::vec3 candleColor = flicker * scn::POINT_LIGHTS_COLOR[scn::POINT_LIGHT_CANDLE];
+		glProgramUniform3fv(modelProgram, mdl::LOC_PLIGHTS_COLOR + scn::POINT_LIGHT_CANDLE, 1, &candleColor[0]);
+		
+		glProgramUniform1ui(modelProgram, mdl::LOC_PLIGHTS_ON    , scene.pLightsOn                            );
+		glProgramUniform1f (modelProgram, mdl::LOC_AMBIENT_SCALE , scene.ambientOn ? scene.ambientScale : 0.0f);
+		glProgramUniform1f (modelProgram, mdl::LOC_DIFFUSE_SCALE , scene.diffuseScale                         );
+		glProgramUniform1f (modelProgram, mdl::LOC_SPECULAR_SCALE, scene.specularScale                        );
+		
+		
+		// --- SCALE VIEWPORT ---
 		// Map the drawing onto the whole frame buffer.
 		glViewport(0, 0, fbWidth, fbHeight);
 		
 		
-		// --- MESH INSPECTION ---
+		// --- INSPECT MESH? ---
 		glPolygonMode(  // Here, "polygon" means the triangle primitives models (and the sky box) are built from.
 			GL_FRONT_AND_BACK            ,  // ARG.: Applies to triangles facing the camera AND facing away from it (i.e.: all triangles).
 			                                // OBS.: `GL_FRONT_AND_BACK` is the only value core profile accepts;
@@ -261,20 +296,16 @@ int main() {
 		// OBS.: `glUseProgram()` picks which shaders run for every draw call after it.
 		glUseProgram(modelProgram);
 		
-		// Lights: set once per frame, shared by every model drawn below.
-		glUniform3fv(mdl::MODEL_AMBIENT_LOCATION    , 1, &scn::AMBIENT_LIGHT[0]   );
-		glUniform3fv(mdl::MODEL_LIGHT_POS_LOCATION  , 1, &scene.navi.position[0]  );  // Navi carries the light.
-		glUniform3fv(mdl::MODEL_LIGHT_COLOR_LOCATION, 1, &scn::NAVI_LIGHT_COLOR[0]);
-		
-		// Static models: M was computed once, in `scn::arrangeScene()`.
+		// Static instances: M was computed once, in `scn::arrangeScene()`.
 		for ( int id = 0; id < scn::MODEL_COUNT; id++ ) {
+			
+			// Model lighting mask.
+			glUniform1ui(mdl::LOC_MODEL_MASK, scn::MODEL_PLIGHTS_MASKS[id]);
+			
 			for ( const glm::mat4& M : scene.statics[id] ) {
 				mdl::drawModel(models[id], M);
 			}
 		}
-		// Dynamic models: M is computed now, from whatever the keyboard made of the transform.
-		mdl::drawModel(models[scn::MODEL_NAVI ], xform::modelMatrix(scene.navi ));
-		mdl::drawModel(models[scn::MODEL_HEART], xform::modelMatrix(scene.heart));
 		
 		
 		// --- DRAW SKY BOX ---
@@ -282,6 +313,40 @@ int main() {
 		// saving the work of shading them.
 		glUseProgram(skyboxProgram);
 		sky::drawSkybox(sky);
+		
+		
+		// --- DRAW TRANSLUCENT MODELS ---
+		glUseProgram(modelProgram);
+		glEnable(GL_BLEND);
+		glDepthMask(GL_FALSE);
+		
+		// BLEND OVER what's behind.
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glEnable(GL_CULL_FACE);
+		
+		glUniform1ui(mdl::LOC_MODEL_MASK, scn::MODEL_PLIGHTS_MASKS[scn::HEART_SHELL]);
+		mdl::drawModel(models[scn::HEART_SHELL], xform::modelMatrix(scene.heart));
+		
+		glDisable(GL_CULL_FACE);
+		
+		// ADD TO what's behind.
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+		
+		// Navi.
+		glUniform1ui(mdl::LOC_MODEL_MASK, scn::MODEL_PLIGHTS_MASKS[scn::NAVI_BODY]);
+		mdl::drawModel(models[scn::NAVI_WINGS], xform::modelMatrix    (scene.navi                   ));
+		mdl::drawModel(models[scn::NAVI_BODY ], xform::billboardMatrix(scene.navi, cameraMatrices[0]));
+		
+		// Flame.
+		glUniform1ui(mdl::LOC_MODEL_MASK, scn::MODEL_PLIGHTS_MASKS[scn::CANDLE_FLAME]);
+		mdl::drawModel(models[scn::CANDLE_FLAME], xform::modelMatrix(scene.flame));
+		
+		// Heart core.
+		glUniform1ui(mdl::LOC_MODEL_MASK, scn::MODEL_PLIGHTS_MASKS[scn::HEART_CORE]);
+		mdl::drawModel(models[scn::HEART_CORE], xform::modelMatrix(scene.heart));
+		
+		glDepthMask(GL_TRUE);
+		glDisable(GL_BLEND);
 		
 		
 		// --- DISPLAY FRAME ---

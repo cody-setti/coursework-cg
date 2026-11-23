@@ -46,6 +46,7 @@ struct ParsedMaterial {
 	glm::vec3   Kd  {1.0f};  // White (1.0f) leaves the texture's color untouched.
 	glm::vec3   Ks  {0.0f};  // Black (0.0f) means no highlight.
 	float       Ns = 1.0f ;  // The larger the specular exponent, the smaller and sharper the highlight.
+	glm::vec3   Ke  {0.0f};  // Black (0.0f) means no emissions.
 };
 
 
@@ -190,6 +191,12 @@ inline std::map<std::string, wavef::ParsedMaterial> parseMTL(const char* path) {
 			ss >> Ks.r >> Ks.g >> Ks.b;
 			
 			materials[name].Ks = Ks;
+		}
+		else if ( prefix == "Ke" ) {
+			glm::vec3 Ke;
+			ss >> Ke.r >> Ke.g >> Ke.b;
+			
+			materials[name].Ke = Ke;
 		}
 		else if ( prefix == "Ns" ) {
 			float Ns;

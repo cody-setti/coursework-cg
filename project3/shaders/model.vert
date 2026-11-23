@@ -7,12 +7,8 @@ layout (        location = 0) in      vec3   attributePos                 ;  // 
 layout (        location = 1) in      vec2   attributeST                  ;  // Texture coordinates, read from attribute slot 1.
 layout (        location = 2) in      vec3   attributeNrml                ;  // Surface direction  , read from attribute slot 2.
 
-layout (        location = 0) uniform mat4          M                     ;  // Uniform slot 0 does not clash with Attribute slot 0.
-layout (std140, binding  = 0) uniform Camera { mat4 V; mat4 P; vec3 eye; };  // The default layout is `shared`, where the DRIVER
-                                                                   // picks the member offsets and WE'd have to query them
-                                                                   // at runtime.
-                                                                   // `std140` fixes the offsets by rule, so V at 0 and P
-                                                                   // at 64 is guaranteed.
+layout (std140, binding  = 0) uniform Camera { mat4 V; mat4 P; vec3 eye; };
+layout (        location = 0) uniform mat4          M                     ;
 
                               out     vec3   varyingPos                   ;  // World space.
                               out     vec2   varyingST                    ;

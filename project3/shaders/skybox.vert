@@ -6,7 +6,7 @@
 layout (        location = 0) in      vec3   attributeCorner    ;
 
 // OBS.: NO MODEL MATRIX. THE SKY IS NEVER MOVED, ROTATED NOR SCALED.
-layout (std140, binding  = 0) uniform Camera { mat4 V; mat4 P; };
+layout (std140, binding  = 0) uniform Camera { mat4 V; mat4 P; /*vec3 eye;*/ };
 
                               out     vec3   varyingDir         ;
 

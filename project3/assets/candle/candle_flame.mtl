@@ -1,0 +1,11 @@
+# Flame of Candle 04.blend: a light source, so it reflects nothing and only emits.
+newmtl Flame
+Ns 0.000000
+Ka 0.000000 0.000000 0.000000
+Kd 0.000000 0.000000 0.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.600000 0.600000 0.600000
+Ni 1.000000
+d 1.000000
+illum 0
+map_Kd candle_flame.png

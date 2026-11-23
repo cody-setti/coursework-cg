@@ -1,10 +1,11 @@
 # Blender3D MTL File: Navi.blend
-newmtl Navi
+newmtl Body
 Ns 0.000000
 Ka 0.000000 0.000000 0.000000
-Kd 0.656250 0.656250 0.796875
+Kd 0.000000 0.000000 0.000000
 Ks 0.000000 0.000000 0.000000
+Ke 0.700000 0.800000 1.000000
 Ni 1.000000
 d 1.000000
 illum 2
-map_Kd navi.png
+map_Kd navi_body.png

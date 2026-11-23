@@ -21,16 +21,22 @@ namespace input {
 
 // TYPES
 struct Carryover {
-	bool       pPressed = false          ;
-	glm::dvec2 cursor   = glm::dvec2(0.0);  // Cursor position in the previous frame, in pixels.
-	                                        // Δx and Δy are used to update the yaw and pitch, respectively.
-	double     scrollY  = 0.0            ;
+	bool       pPressed                                  = false          ;
+	glm::dvec2 cursor                                    = glm::dvec2(0.0);  // Cursor position in the previous frame, in pixels.
+	                                                                         // Δx and Δy are used to update the yaw and pitch, respectively.
+	double     scrollY                                   = 0.0            ;
+	
+	bool       ambientKeyPressed                         = false          ;
+	bool       pLightKeysPressed[scn::POINT_LIGHT_COUNT] = {}             ;  // `{}` sets them all to false.
 };
 
 // CONSTANTS
 constexpr float TAU               = 6.28318530718f;  // τ: one full turn, in radians.
 
-constexpr float NAVI_SPEED        = 7.0f          ;  // World units per second.
+constexpr float NAVI_SPEED        = 9.0f          ;  // World units per second.
+
+constexpr float REFLECTANCE_SPEED = 3.0f          ;
+constexpr float REFLECTANCE_MAX   = 6.0f          ;
 
 constexpr float MOUSE_SENSITIVITY = 0.0003f * TAU ;
 constexpr float FLY_SPEED         = 3.0f          ;
@@ -148,6 +154,30 @@ inline void processInput(
 	const bool pPressed = glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS;
 	if ( pPressed && !carry.pPressed ) wireframe = !wireframe;  // Toggle once per press, not once per frame held.
 	carry.pPressed = pPressed;
+	
+	
+	// TOGGLE LIGHTS
+	const bool ambientKeyPressed = glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS;
+	if ( ambientKeyPressed && !carry.ambientKeyPressed ) scene.ambientOn = !scene.ambientOn;  // Toggle once per press, not once per frame held.
+	carry.ambientKeyPressed = ambientKeyPressed;
+	
+	for ( int i = 0; i < scn::POINT_LIGHT_COUNT; i++ ) {
+		const bool pLightKeyPressed = glfwGetKey(window, GLFW_KEY_2 + i) == GLFW_PRESS;
+		if ( pLightKeyPressed && !carry.pLightKeysPressed[i] ) scene.pLightsOn ^= (1u << i);  // XOR flips only bit i.
+		carry.pLightKeysPressed[i] = pLightKeyPressed;
+	}
+	
+	// SCALE REFLECTIONS
+	const float reflectanceStep = input::REFLECTANCE_SPEED * dt;
+	if ( glfwGetKey(window, GLFW_KEY_R           ) == GLFW_PRESS ) scene.ambientScale  += reflectanceStep;
+	if ( glfwGetKey(window, GLFW_KEY_F           ) == GLFW_PRESS ) scene.ambientScale  -= reflectanceStep;
+	if ( glfwGetKey(window, GLFW_KEY_E           ) == GLFW_PRESS ) scene.diffuseScale  += reflectanceStep;
+	if ( glfwGetKey(window, GLFW_KEY_Q           ) == GLFW_PRESS ) scene.diffuseScale  -= reflectanceStep;
+	if ( glfwGetKey(window, GLFW_KEY_SPACE       ) == GLFW_PRESS ) scene.specularScale += reflectanceStep;
+	if ( glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ) scene.specularScale -= reflectanceStep;
+	scene.ambientScale  = glm::clamp(scene.ambientScale , 0.0f, input::REFLECTANCE_MAX);
+	scene.diffuseScale  = glm::clamp(scene.diffuseScale , 0.0f, input::REFLECTANCE_MAX);
+	scene.specularScale = glm::clamp(scene.specularScale, 0.0f, input::REFLECTANCE_MAX);
 }
 
 }  // namespace input

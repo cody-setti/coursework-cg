@@ -1,0 +1,16 @@
+# Glowing core of Piece of heart.blend, moved out of heart.obj.
+# The original inner quad, 1.25x larger so the glow can spread past the heart's edges.
+mtllib heart_core.mtl
+v 6.561346 6.561346 0.000000
+v -6.561346 6.561346 0.000000
+v -6.561346 -6.561346 0.000000
+v 6.561346 -6.561346 0.000000
+vt 1.000000 1.000000
+vt 0.000000 1.000000
+vt 0.000000 0.000000
+vt 1.000000 0.000000
+vn 0.000000 0.000000 1.000000
+usemtl Core
+s off
+f 1/1/1 2/2/1 3/3/1
+f 3/3/1 4/4/1 1/1/1

@@ -12,12 +12,24 @@ make run
 
 | Keys            | Effect                          |
 | --------------- | ------------------------------- |
+| `1`             | Toggle ambient  light           |
+| `2`             | Toggle Navi's   light           |
+| `3`             | Toggle Candle's light           |
+| `4`             | Toggle Heart's light            |
+| --------------- | ------------------------------- |
+| `R` `F`         | Ambient  light dials            |
+| `E` `Q`         | Diffuse  light dials            |
+| `SPACE` `CTRL`  | Specular light dials            |
+| --------------- | ------------------------------- |
 | `W` `A` `S` `D` | Fly                             |
 | `LEFT SHIFT`    | Fly faster (hold)               |
 | Cursor          | Look around                     |
 | Scroll Wheel    | Zoom camera in/out              |
+| --------------- | ------------------------------- |
 | Arrow keys      | Move Navi (translation)         |
+| --------------- | ------------------------------- |
 | `P`             | Toggle the wireframe view       |
+| --------------- | ------------------------------- |
 | `Esc`           | Quit                            |
 
 ## Data flow

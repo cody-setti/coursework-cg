@@ -29,15 +29,30 @@ struct Model {
 
 
 // CONSTANTS
+// TODO: Should `LOC_PLIGHTS_MASK` maybe com before the material locations?
+// OBS.: MUST match `MAX_POINT_LIGHTS` in "shaders/model.frag"!
+constexpr int   MAX_POINT_LIGHTS  = 8;
+
 // Uniform locations, as fixed by the `layout (location = ...)` qualifiers in "shaders/model.vert" and "shaders/model.frag".
-// OBS.: Locations belong to the whole PROGRAM, not to one stage: the fragment shader's uniforms can't reuse the vertex shader's 0.
-constexpr GLint MODEL_M_LOCATION           = 0;
-constexpr GLint MODEL_KD_LOCATION          = 1;
-constexpr GLint MODEL_KS_LOCATION          = 2;
-constexpr GLint MODEL_NS_LOCATION          = 3;
-constexpr GLint MODEL_AMBIENT_LOCATION     = 4;
-constexpr GLint MODEL_LIGHT_POS_LOCATION   = 5;
-constexpr GLint MODEL_LIGHT_COLOR_LOCATION = 6;
+// OBS.: Locations belong to the whole PROGRAM, not to one stage: the fragment shader's uniforms can't collide with the vertex's ones.
+constexpr GLint LOC_MODEL_M           = 0                              ;
+
+constexpr GLint LOC_AMBIENT_LIGHT     = 1                              ;
+constexpr GLint LOC_PLIGHT_COUNT      = 2                              ;
+constexpr GLint LOC_PLIGHTS_POS       = 3                              ;
+constexpr GLint LOC_PLIGHTS_COLOR     = 3 +   mdl::MAX_POINT_LIGHTS    ;
+constexpr GLint LOC_PLIGHTS_HALF_DIST = 3 + 2*mdl::MAX_POINT_LIGHTS    ;
+
+constexpr GLint LOC_MATERIAL_KD       = 3 + 3*mdl::MAX_POINT_LIGHTS    ;
+constexpr GLint LOC_MATERIAL_KS       = 3 + 3*mdl::MAX_POINT_LIGHTS + 1;
+constexpr GLint LOC_MATERIAL_NS       = 3 + 3*mdl::MAX_POINT_LIGHTS + 2;
+constexpr GLint LOC_MATERIAL_KE       = 3 + 3*mdl::MAX_POINT_LIGHTS + 3;
+
+constexpr GLint LOC_MODEL_MASK        = 3 + 3*mdl::MAX_POINT_LIGHTS + 4;
+constexpr GLint LOC_PLIGHTS_ON        = 3 + 3*mdl::MAX_POINT_LIGHTS + 5;
+constexpr GLint LOC_AMBIENT_SCALE     = 3 + 3*mdl::MAX_POINT_LIGHTS + 6;
+constexpr GLint LOC_DIFFUSE_SCALE     = 3 + 3*mdl::MAX_POINT_LIGHTS + 7;
+constexpr GLint LOC_SPECULAR_SCALE    = 3 + 3*mdl::MAX_POINT_LIGHTS + 8;
 
 
 // FUNCTIONS
@@ -118,9 +133,9 @@ inline mdl::Model loadModel(const char* objPath) {
 
 // Draws every material range of `model`, each with its own texture, placed in the world by `M`.
 // OBS.: Before this draw function below runs, the model shader program must be in use, and the
-//       camera buffer must be filled and bound to binding point 0 (peep `main.cpp`).
+//       camera buffer must be filled and bound to binding point 0 (peep `main.cpp`). TODO: cite filling lighting uniforms???
 inline void drawModel(const mdl::Model& model, const glm::mat4& M) {
-	glUniformMatrix4fv(mdl::MODEL_M_LOCATION, 1, GL_FALSE, &M[0][0]);
+	glUniformMatrix4fv(mdl::LOC_MODEL_M, 1, GL_FALSE, &M[0][0]);
 	
 	glBindVertexArray(model.VAO);
 	
@@ -137,9 +152,10 @@ inline void drawModel(const mdl::Model& model, const glm::mat4& M) {
 		const auto                  foundMtl = model.materials.find(range.mtlName)                                                 ;
 		const wavef::ParsedMaterial material = ( foundMtl != model.materials.end() ) ? (*foundMtl).second : wavef::ParsedMaterial{};
 		
-		glUniform3fv(mdl::MODEL_KD_LOCATION, 1, &material.Kd[0]);
-		glUniform3fv(mdl::MODEL_KS_LOCATION, 1, &material.Ks[0]);
-		glUniform1f (mdl::MODEL_NS_LOCATION,     material.Ns   );
+		glUniform3fv(mdl::LOC_MATERIAL_KD, 1, &material.Kd[0]);
+		glUniform3fv(mdl::LOC_MATERIAL_KS, 1, &material.Ks[0]);
+		glUniform1f (mdl::LOC_MATERIAL_NS,     material.Ns   );
+		glUniform3fv(mdl::LOC_MATERIAL_KE, 1, &material.Ke[0]);
 		
 		glDrawArrays(
 			GL_TRIANGLES, // Each trio of vertices defines a triangle.
