@@ -328,11 +328,11 @@ int main() {
 		// ADD TO what's behind.
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		
-		// Navi wings.
-		glUniform1ui(mdl::LOC_MODEL_LAMPS, scn::MODEL_LAMP_MASKS[scn::NAVI_WINGS] & scene.lampsOn);
-		mdl::drawModel(models[scn::NAVI_WINGS], xform::modelMatrix(scene.navi));
-		// Navi body.
 		if ( scene.lampsOn & (1u << scn::NAVI_LAMP) ) {
+			// Navi wings.
+			glUniform1ui(mdl::LOC_MODEL_LAMPS, scn::MODEL_LAMP_MASKS[scn::NAVI_WINGS] & scene.lampsOn);
+			mdl::drawModel(models[scn::NAVI_WINGS], xform::modelMatrix(scene.navi));
+			// Navi body.
 			glUniform1ui(mdl::LOC_MODEL_LAMPS, scn::MODEL_LAMP_MASKS[scn::NAVI_BODY] & scene.lampsOn);
 			mdl::drawModel(models[scn::NAVI_BODY ], xform::billboardMatrix(scene.navi, cameraMatrices[0]));
 		}
