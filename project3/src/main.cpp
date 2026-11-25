@@ -53,11 +53,11 @@ int main() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6                       );  // Request OpenGL version x.6.
 	glfwWindowHint(GLFW_OPENGL_PROFILE       , GLFW_OPENGL_CORE_PROFILE);  // Explicitly disable deprecated legacy functions.
 	
-	GLFWwindow* const window = glfwCreateWindow(  //  `type* const` sets the pointer's target in stone: Falling Moon.
+	GLFWwindow* const window = glfwCreateWindow(  //  `type* const` sets the pointer's target in stone: Dark Times.
 	                                              //  `const type*` would make the window immutable.
 		1920          ,  // PARAM.: Window width.
 		1080          ,  // PARAM.: Window height.
-		"Falling Moon",  // PARAM.: Window title.
+		"Dark Times",  // PARAM.: Window title.
 		nullptr       ,  // ARG.  : No fullscreen monitor.
 		nullptr          // ARG.  : Don't share resources with another context.
 	);
@@ -66,7 +66,7 @@ int main() {
 		glfwTerminate()                                    ;
 		return EXIT_FAILURE                                ;
 	}
-	// Set "Falling Moon" as context for OpenGL calls.
+	// Set "Dark Times" as context for OpenGL calls.
 	glfwMakeContextCurrent(window);
 	
 	// OBS.: GLFW uses double buffering to avoid displaying half-drawn frames.
@@ -107,12 +107,9 @@ int main() {
 	
 	
 	// --- DEFINE SHADER'S CONSTANT UNIFORMS ---
-	// `static_assert` checks a boolean constant expression at compile time.
-	static_assert(scn::POINT_LIGHT_COUNT <= mdl::MAX_POINT_LIGHTS, "The scene has more lights than the model program can hold.");
-	glProgramUniform3fv(modelProgram, mdl::LOC_AMBIENT_LIGHT    , 1                     , &scn::AMBIENT_LIGHT[0]         );
-	glProgramUniform1i (modelProgram, mdl::LOC_PLIGHT_COUNT     ,                          scn::POINT_LIGHT_COUNT        );
-	glProgramUniform3fv(modelProgram, mdl::LOC_PLIGHTS_COLOR    , scn::POINT_LIGHT_COUNT, &scn::POINT_LIGHTS_COLOR[0][0] );
-	glProgramUniform1fv(modelProgram, mdl::LOC_PLIGHTS_HALF_DIST, scn::POINT_LIGHT_COUNT, &scn::POINT_LIGHTS_HALF_DIST[0]);
+	glProgramUniform3fv(modelProgram, mdl::LOC_AMBIENT_LIGHT  , 1              , &scn::AMBIENT_LIGHT[0]  );
+	glProgramUniform3fv(modelProgram, mdl::LOC_LAMP_COLORS    , scn::LAMP_COUNT, &scn::LAMP_COLORS[0][0] );
+	glProgramUniform1fv(modelProgram, mdl::LOC_LAMP_HALF_DISTS, scn::LAMP_COUNT, &scn::LAMP_HALF_DISTS[0]);
 	
 	
 	// --- CREATE A CAMERA BUFFER ---
@@ -250,20 +247,19 @@ int main() {
 		
 		
 		// --- UPDATE LIGHTS ---
-		const glm::vec3 pLightsPos[scn::POINT_LIGHT_COUNT] = {
-			scene.navi .position            ,
-			glm::vec3(-1.51f, 0.36f, -0.81f),  // Candle flame.
+		const glm::vec3 lampPositions[scn::LAMP_COUNT] = {
+			scene.navi.position             ,
+			glm::vec3(-1.51f, 0.34f, -0.81f),  // Candle flame.
 			scene.heart.position            ,
 		};
-		glProgramUniform3fv(modelProgram, mdl::LOC_PLIGHTS_POS, scn::POINT_LIGHT_COUNT, &pLightsPos[0][0]);
+		glProgramUniform3fv(modelProgram, mdl::LOC_LAMP_POSITIONS, scn::LAMP_COUNT, &lampPositions[0][0]);
 		
-		const glm::vec3 candleColor = flicker * scn::POINT_LIGHTS_COLOR[scn::POINT_LIGHT_CANDLE];
-		glProgramUniform3fv(modelProgram, mdl::LOC_PLIGHTS_COLOR + scn::POINT_LIGHT_CANDLE, 1, &candleColor[0]);
+		const glm::vec3 candleColor = flicker * scn::LAMP_COLORS[scn::CANDLE_LAMP];
+		glProgramUniform3fv(modelProgram, mdl::LOC_LAMP_COLORS + scn::CANDLE_LAMP, 1, &candleColor[0]);
 		
-		glProgramUniform1ui(modelProgram, mdl::LOC_PLIGHTS_ON    , scene.pLightsOn                            );
-		glProgramUniform1f (modelProgram, mdl::LOC_AMBIENT_SCALE , scene.ambientOn ? scene.ambientScale : 0.0f);
-		glProgramUniform1f (modelProgram, mdl::LOC_DIFFUSE_SCALE , scene.diffuseScale                         );
-		glProgramUniform1f (modelProgram, mdl::LOC_SPECULAR_SCALE, scene.specularScale                        );
+		glProgramUniform1f (modelProgram, mdl::LOC_AMBIENT_GAIN , scene.ambientOn ? scene.ambientGain : 0.0f);
+		glProgramUniform1f (modelProgram, mdl::LOC_DIFFUSE_GAIN , scene.diffuseGain                         );
+		glProgramUniform1f (modelProgram, mdl::LOC_SPECULAR_GAIN, scene.specularGain                        );
 		
 		
 		// --- SCALE VIEWPORT ---
@@ -300,7 +296,7 @@ int main() {
 		for ( int id = 0; id < scn::MODEL_COUNT; id++ ) {
 			
 			// Model lighting mask.
-			glUniform1ui(mdl::LOC_MODEL_MASK, scn::MODEL_PLIGHTS_MASKS[id]);
+			glUniform1ui(mdl::LOC_MODEL_LAMPS, scn::MODEL_LAMP_MASKS[id] & scene.lampsOn);
 			
 			for ( const glm::mat4& M : scene.statics[id] ) {
 				mdl::drawModel(models[id], M);
@@ -324,7 +320,7 @@ int main() {
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_CULL_FACE);
 		
-		glUniform1ui(mdl::LOC_MODEL_MASK, scn::MODEL_PLIGHTS_MASKS[scn::HEART_SHELL]);
+		glUniform1ui(mdl::LOC_MODEL_LAMPS, scn::MODEL_LAMP_MASKS[scn::HEART_SHELL] & scene.lampsOn);
 		mdl::drawModel(models[scn::HEART_SHELL], xform::modelMatrix(scene.heart));
 		
 		glDisable(GL_CULL_FACE);
@@ -332,18 +328,26 @@ int main() {
 		// ADD TO what's behind.
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		
-		// Navi.
-		glUniform1ui(mdl::LOC_MODEL_MASK, scn::MODEL_PLIGHTS_MASKS[scn::NAVI_BODY]);
-		mdl::drawModel(models[scn::NAVI_WINGS], xform::modelMatrix    (scene.navi                   ));
-		mdl::drawModel(models[scn::NAVI_BODY ], xform::billboardMatrix(scene.navi, cameraMatrices[0]));
+		// Navi wings.
+		glUniform1ui(mdl::LOC_MODEL_LAMPS, scn::MODEL_LAMP_MASKS[scn::NAVI_WINGS] & scene.lampsOn);
+		mdl::drawModel(models[scn::NAVI_WINGS], xform::modelMatrix(scene.navi));
+		// Navi body.
+		if ( scene.lampsOn & (1u << scn::NAVI_LAMP) ) {
+			glUniform1ui(mdl::LOC_MODEL_LAMPS, scn::MODEL_LAMP_MASKS[scn::NAVI_BODY] & scene.lampsOn);
+			mdl::drawModel(models[scn::NAVI_BODY ], xform::billboardMatrix(scene.navi, cameraMatrices[0]));
+		}
 		
 		// Flame.
-		glUniform1ui(mdl::LOC_MODEL_MASK, scn::MODEL_PLIGHTS_MASKS[scn::CANDLE_FLAME]);
-		mdl::drawModel(models[scn::CANDLE_FLAME], xform::modelMatrix(scene.flame));
+		if ( scene.lampsOn & (1u << scn::CANDLE_LAMP) ) {
+			glUniform1ui(mdl::LOC_MODEL_LAMPS, scn::MODEL_LAMP_MASKS[scn::CANDLE_FLAME] & scene.lampsOn);
+			mdl::drawModel(models[scn::CANDLE_FLAME], xform::modelMatrix(scene.flame));
+		}
 		
 		// Heart core.
-		glUniform1ui(mdl::LOC_MODEL_MASK, scn::MODEL_PLIGHTS_MASKS[scn::HEART_CORE]);
-		mdl::drawModel(models[scn::HEART_CORE], xform::modelMatrix(scene.heart));
+		if ( scene.lampsOn & (1u << scn::HEART_LAMP) ) {
+			glUniform1ui(mdl::LOC_MODEL_LAMPS, scn::MODEL_LAMP_MASKS[scn::HEART_CORE] & scene.lampsOn);
+			mdl::drawModel(models[scn::HEART_CORE], xform::modelMatrix(scene.heart));
+		}
 		
 		glDepthMask(GL_TRUE);
 		glDisable(GL_BLEND);

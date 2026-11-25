@@ -5,6 +5,7 @@
                                           // `#pragma once` protects `input.hpp` from being double pasted.
 
 #include <cmath>                          // C Mathematics: `std::atan2()`.
+#include <cstdint>                        // C standard integer: `std::uint32_t`.
 
 #include <glad/gl.h>                      // GLAD: loads driver-specific OpenGL function pointers at runtime.
                                           // Must be included before GLFW.
@@ -17,31 +18,35 @@
 #include "world/camera.hpp"               // `cam::Camera`, `cam::turn()`, `cam::fly()`, `cam::confine()`, `cam::zoom()`.
 
 
+// `static_assert` checks a boolean constant expression at compile time.
+static_assert(scn::LAMP_COUNT <= 8, "Lamps toggle with keys 2 to 9.");
+
+
 namespace input {
 
 // TYPES
 struct Carryover {
-	bool       pPressed                                  = false          ;
-	glm::dvec2 cursor                                    = glm::dvec2(0.0);  // Cursor position in the previous frame, in pixels.
-	                                                                         // Δx and Δy are used to update the yaw and pitch, respectively.
-	double     scrollY                                   = 0.0            ;
+	bool          pPressed          = false          ;
+	glm::dvec2    cursor            = glm::dvec2(0.0);  // Cursor position in the previous frame, in pixels.
+	                                                    // Δx and Δy are used to update the yaw and pitch, respectively.
+	double        scrollY           = 0.0            ;
 	
-	bool       ambientKeyPressed                         = false          ;
-	bool       pLightKeysPressed[scn::POINT_LIGHT_COUNT] = {}             ;  // `{}` sets them all to false.
+	bool          ambientKeyPressed = false          ;
+	std::uint32_t lampKeysPressed   = 0u             ;  // Bit i: lamp i's key was down last frame.
 };
 
 // CONSTANTS
-constexpr float TAU               = 6.28318530718f;  // τ: one full turn, in radians.
+constexpr float TAU              = 6.28318530718f;  // τ: one full turn, in radians.
 
-constexpr float NAVI_SPEED        = 9.0f          ;  // World units per second.
+constexpr float NAVI_SPEED       = 9.0f          ;  // World units per second.
 
-constexpr float REFLECTANCE_SPEED = 3.0f          ;
-constexpr float REFLECTANCE_MAX   = 6.0f          ;
+constexpr float GAIN_SPEED       = 3.0f          ;
+constexpr float GAIN_MAX         = 6.0f          ;
 
-constexpr float MOUSE_SENSITIVITY = 0.0003f * TAU ;
-constexpr float FLY_SPEED         = 3.0f          ;
-constexpr float FLY_BOOST         = 3.0f          ;
-constexpr float ZOOM_SENSITIVITY  = 0.005f  * TAU ;
+constexpr float TURN_SENSITIVITY = 0.0003f * TAU ;
+constexpr float FLY_SPEED        = 3.0f          ;
+constexpr float FLY_BOOST        = 3.0f          ;
+constexpr float ZOOM_SENSITIVITY = 0.005f  * TAU ;
 
 
 // FUNCTIONS
@@ -103,8 +108,8 @@ inline void processInput(
 	const float dy = (float)(carry.cursor.y -       cursor.y);  // the top-left corner of the screen. ▼  
 	carry.cursor = cursor;
 	
-	const float dYaw   = input::MOUSE_SENSITIVITY * dx;
-	const float dPitch = input::MOUSE_SENSITIVITY * dy;
+	const float dYaw   = input::TURN_SENSITIVITY * dx;
+	const float dPitch = input::TURN_SENSITIVITY * dy;
 	cam::turn(camera, dYaw, dPitch)                   ;
 	
 	// TRANSLATE CAMERA
@@ -161,23 +166,24 @@ inline void processInput(
 	if ( ambientKeyPressed && !carry.ambientKeyPressed ) scene.ambientOn = !scene.ambientOn;  // Toggle once per press, not once per frame held.
 	carry.ambientKeyPressed = ambientKeyPressed;
 	
-	for ( int i = 0; i < scn::POINT_LIGHT_COUNT; i++ ) {
-		const bool pLightKeyPressed = glfwGetKey(window, GLFW_KEY_2 + i) == GLFW_PRESS;
-		if ( pLightKeyPressed && !carry.pLightKeysPressed[i] ) scene.pLightsOn ^= (1u << i);  // XOR flips only bit i.
-		carry.pLightKeysPressed[i] = pLightKeyPressed;
+	std::uint32_t lampKeysPressed = 0u;
+	for ( int i = 0; i < scn::LAMP_COUNT; i++ ) {
+		if ( glfwGetKey(window, GLFW_KEY_2 + i) == GLFW_PRESS ) lampKeysPressed |= (1u << i);
 	}
+	scene.lampsOn         ^= lampKeysPressed & ~carry.lampKeysPressed;  // Flip only the lamps whose key went down this frame.
+	carry.lampKeysPressed  = lampKeysPressed;
 	
-	// SCALE REFLECTIONS
-	const float reflectanceStep = input::REFLECTANCE_SPEED * dt;
-	if ( glfwGetKey(window, GLFW_KEY_R           ) == GLFW_PRESS ) scene.ambientScale  += reflectanceStep;
-	if ( glfwGetKey(window, GLFW_KEY_F           ) == GLFW_PRESS ) scene.ambientScale  -= reflectanceStep;
-	if ( glfwGetKey(window, GLFW_KEY_E           ) == GLFW_PRESS ) scene.diffuseScale  += reflectanceStep;
-	if ( glfwGetKey(window, GLFW_KEY_Q           ) == GLFW_PRESS ) scene.diffuseScale  -= reflectanceStep;
-	if ( glfwGetKey(window, GLFW_KEY_SPACE       ) == GLFW_PRESS ) scene.specularScale += reflectanceStep;
-	if ( glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ) scene.specularScale -= reflectanceStep;
-	scene.ambientScale  = glm::clamp(scene.ambientScale , 0.0f, input::REFLECTANCE_MAX);
-	scene.diffuseScale  = glm::clamp(scene.diffuseScale , 0.0f, input::REFLECTANCE_MAX);
-	scene.specularScale = glm::clamp(scene.specularScale, 0.0f, input::REFLECTANCE_MAX);
+	// TUNE REFLECTION'S GAINS
+	const float gainStep = input::GAIN_SPEED * dt;
+	if ( glfwGetKey(window, GLFW_KEY_R           ) == GLFW_PRESS ) scene.ambientGain  += gainStep;
+	if ( glfwGetKey(window, GLFW_KEY_F           ) == GLFW_PRESS ) scene.ambientGain  -= gainStep;
+	if ( glfwGetKey(window, GLFW_KEY_E           ) == GLFW_PRESS ) scene.diffuseGain  += gainStep;
+	if ( glfwGetKey(window, GLFW_KEY_Q           ) == GLFW_PRESS ) scene.diffuseGain  -= gainStep;
+	if ( glfwGetKey(window, GLFW_KEY_SPACE       ) == GLFW_PRESS ) scene.specularGain += gainStep;
+	if ( glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ) scene.specularGain -= gainStep;
+	scene.ambientGain  = glm::clamp(scene.ambientGain , 0.0f, input::GAIN_MAX);
+	scene.diffuseGain  = glm::clamp(scene.diffuseGain , 0.0f, input::GAIN_MAX);
+	scene.specularGain = glm::clamp(scene.specularGain, 0.0f, input::GAIN_MAX);
 }
 
 }  // namespace input

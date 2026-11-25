@@ -35,8 +35,8 @@ inline glm::mat4 modelMatrix(const xform::Transform& transform) {
 }
 
 // M = T · C · S
-// Like `modelMatrix()`, but the ration C mirror's the camera's.
-// OBS.: Therefore, the model's euler angles are ignored state.
+// Like `modelMatrix()`, but the rotation C mirrors the camera's.
+// OBS.: Therefore, the model's Euler angles are ignored state.
 inline glm::mat4 billboardMatrix(const xform::Transform& transform, const glm::mat4& V) {
 	glm::mat4 M = glm::mat4(1.0f);
 	

@@ -117,7 +117,7 @@ inline wavef::ParsedOBJ parseOBJ(const char* path) {
 			std::string mtlName;
 			ss >> mtlName;
 			
-			const int firstVertex = parsed.vertexData.size() / wavef::FLOATS_PER_VERTEX;
+			const int firstVertex = (int)( parsed.vertexData.size() / wavef::FLOATS_PER_VERTEX );
 			
 			parsed.ranges.push_back( {mtlName, firstVertex, 0} );
 		}

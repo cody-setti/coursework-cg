@@ -4,6 +4,8 @@
 #pragma once                             // `#include` literally pastes a file's text in place.
                                          // `#pragma once` protects `scene.hpp` from being double pasted.
 
+#include <cstdint>                       // `std::uint32_t`: an unsigned integer of exactly 32 bits, like GLSL's `uint`.
+
 #include <vector>                        // `std::vector` is a resizable array.
 
 #include <glm/glm.hpp>                   // GL Mathematics: provides GLSL-compatible vector and matrix types.
@@ -41,42 +43,42 @@ enum ModelID {
 	MODEL_COUNT
 };
 
-enum PointLightID {
+enum LampID {
 	// Outdoor lights.
-	POINT_LIGHT_NAVI  ,
+	NAVI_LAMP  ,
 	
 	// Indoor lights.
-	POINT_LIGHT_CANDLE,
-	POINT_LIGHT_HEART ,
+	CANDLE_LAMP,
+	HEART_LAMP ,
 	
-	POINT_LIGHT_COUNT
+	LAMP_COUNT
 };
+// `static_assert` checks a boolean constant expression at compile time.
+static_assert(scn::LAMP_COUNT < 32, "More than 31 lamps defined.");
 
 struct Scene {
-	std::vector<glm::mat4> statics[scn::MODEL_COUNT];  // e.g.:                                                                
-	                                                   //       statics[GRASS]  →  [ M ]                   1 copy              
-	                                                   //       statics[PINE ]  →  [ M, M, M, M, ..., M ]  9 copies            
-	                                                   //       statics[OAK  ]  →  [ M, M, M ]             3 copies            
-	                                                   //       statics[NAVI ]  →  [ ]                     empty (it's dynamic)
-	                                                   //                      ...                                             
+	std::vector<glm::mat4> statics[scn::MODEL_COUNT]                  ;  // e.g.:                                                                
+	                                                                     //       statics[GRASS]  →  [ M ]                   1 copy              
+	                                                                     //       statics[PINE ]  →  [ M, M, M, M, ..., M ]  9 copies            
+	                                                                     //       statics[OAK  ]  →  [ M, M, M ]             3 copies            
+	                                                                     //       statics[NAVI ]  →  [ ]                     empty (it's dynamic)
+	                                                                     //                      ...                                             
 	
-	xform::Transform       navi, flame, heart       ;  // Their M is rebuilt every frame.
+	xform::Transform       navi, flame, heart                         ;  // Their M is rebuilt every frame.
 	
-	bool     ambientOn     = true                               ;
-	unsigned pLightsOn     = (1u << scn::POINT_LIGHT_COUNT) - 1u;
-	float    ambientScale  = 1.0f                               ;
-	float    diffuseScale  = 1.0f                               ;
-	float    specularScale = 1.0f                               ;
+	bool                   ambientOn    = true                        ;
+	std::uint32_t          lampsOn      = (1u << scn::LAMP_COUNT) - 1u;
+	float                  ambientGain  = 1.0f                        ;
+	float                  diffuseGain  = 1.0f                        ;
+	float                  specularGain = 1.0f                        ;
 };
 
 
 // CONSTANTS
-// TODO: reflect if constants order is ideal and if the ones that depend on ModelID should be write next to it
-//       breaking the usual TYPES/CONSTANTS/FUNCTIONS split.
 constexpr float TAU = 6.28318530718f;  // τ: one full turn, in radians.
 
 // The model order below MUST mirror exactly that of `scn::ModelID`.
-const char* const OBJ_PATHS[scn::MODEL_COUNT] = {
+const char* const OBJ_PATHS[] = {
 	"assets/grass/grass.obj"        ,
 	"assets/pine/pine.obj"          ,
 	"assets/oak/oak.obj"            ,
@@ -93,6 +95,7 @@ const char* const OBJ_PATHS[scn::MODEL_COUNT] = {
 	"assets/heart/heart_shell.obj"  ,
 	"assets/heart/heart_core.obj"   ,
 };
+static_assert(std::size(OBJ_PATHS) == scn::MODEL_COUNT, "OBJ_PATHS must have one entry per Model ID.");
 
 // Sky box faces, in OpenGL's cube-map conventional order: +X, -X, +Y, -Y, +Z, -Z.
 const char* const SKYBOX_FACE_PATHS[6] = {
@@ -105,42 +108,45 @@ const char* const SKYBOX_FACE_PATHS[6] = {
 };
 
 constexpr glm::vec3 AMBIENT_LIGHT    = 0.2f * glm::vec3(0.77f, 0.72f, 1.0f);
-// The light order of `POINT_LIGHTS_COLOR[]` MUST mirror exactly that of `scn::PointLightID`.
-constexpr glm::vec3 POINT_LIGHTS_COLOR[scn::POINT_LIGHT_COUNT] = {
+// The light order of `LAMP_COLORS[]` MUST mirror exactly that of `scn::LampID`.
+constexpr glm::vec3 LAMP_COLORS[] = {
 	glm::vec3(0.7f, 0.8f, 1.0f),  // NAVI  : blue  .
 	glm::vec3(1.0f, 0.6f, 0.3f),  // CANDLE: orange.
 	glm::vec3(0.1f, 0.5f, 0.8f),  // HEART : azure .
 };
+static_assert(std::size(LAMP_COLORS) == scn::LAMP_COUNT, "LAMP_COLORS must have one entry per Lamp ID.");
 
-constexpr float POINT_LIGHTS_HALF_DIST[scn::POINT_LIGHT_COUNT] = {
+constexpr float LAMP_HALF_DISTS[] = {
 	5.0f,  // NAVI
 	1.3f,  // CANDLE
 	2.5f,  // HEART
 };
+static_assert(std::size(LAMP_HALF_DISTS) == scn::LAMP_COUNT, "LAMP_HALF_DISTS must have one entry per Lamp ID.");
 
-constexpr unsigned OUTDOOR_PLIGHTS = (1u << scn::POINT_LIGHT_NAVI);
-constexpr unsigned INDOOR_PLIGHTS  = (1u << scn::POINT_LIGHT_CANDLE) | (1u << scn::POINT_LIGHT_HEART);
+constexpr std::uint32_t OUTDOOR_LAMPS = (1u << scn::NAVI_LAMP);
+constexpr std::uint32_t INDOOR_LAMPS  = (1u << scn::CANDLE_LAMP) | (1u << scn::HEART_LAMP);
 
 // The model order below MUST mirror exactly that of `scn::ModelID`.
-constexpr unsigned MODEL_PLIGHTS_MASKS[scn::MODEL_COUNT] = {
+constexpr std::uint32_t MODEL_LAMP_MASKS[] = {
 	// Outdoor models.
-	scn::OUTDOOR_PLIGHTS,  // GRASS
-	scn::OUTDOOR_PLIGHTS,  // PINE
-	scn::OUTDOOR_PLIGHTS,  // OAK
-	scn::OUTDOOR_PLIGHTS,  // SHIELD
-	scn::OUTDOOR_PLIGHTS,  // MOON
-	scn::OUTDOOR_PLIGHTS,  // NAVI   (Wings   )
-	scn::OUTDOOR_PLIGHTS,  // NAVI   (Body    )
-	scn::OUTDOOR_PLIGHTS,  // HUT    (Outdoors)
+	scn::OUTDOOR_LAMPS,  // GRASS
+	scn::OUTDOOR_LAMPS,  // PINE
+	scn::OUTDOOR_LAMPS,  // OAK
+	scn::OUTDOOR_LAMPS,  // SHIELD
+	scn::OUTDOOR_LAMPS,  // MOON
+	scn::OUTDOOR_LAMPS,  // NAVI   (Wings   )
+	scn::OUTDOOR_LAMPS,  // NAVI   (Body    )
+	scn::OUTDOOR_LAMPS,  // HUT    (Outdoors)
 	// Indoor models.
-	scn::INDOOR_PLIGHTS,   // HUT    (Indoors )
-	scn::INDOOR_PLIGHTS,   // MAN
-	scn::INDOOR_PLIGHTS,   // CANDLE (Body    )
-	scn::INDOOR_PLIGHTS,   // CANDLE (Flame   )
-	scn::INDOOR_PLIGHTS,   // POT
-	scn::INDOOR_PLIGHTS,   // HEART  (Shell   )
-	scn::INDOOR_PLIGHTS,   // HEART  (Core    )
+	scn::INDOOR_LAMPS ,  // HUT    (Indoors )
+	scn::INDOOR_LAMPS ,  // MAN
+	scn::INDOOR_LAMPS ,  // CANDLE (Body    )
+	scn::INDOOR_LAMPS ,  // CANDLE (Flame   )
+	scn::INDOOR_LAMPS ,  // POT
+	scn::INDOOR_LAMPS ,  // HEART  (Shell   )
+	scn::INDOOR_LAMPS ,  // HEART  (Core    )
 };
+static_assert(std::size(MODEL_LAMP_MASKS) == scn::MODEL_COUNT, "MODEL_LAMP_MASKS must have one entry per Model ID.");
 
 constexpr glm::vec3 EYE_MIN    = glm::vec3(-20.0f,  0.3f, -20.0f);
 constexpr glm::vec3 EYE_MAX    = glm::vec3( 20.0f, 30.0f,  20.0f);

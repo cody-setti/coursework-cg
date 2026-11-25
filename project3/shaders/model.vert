@@ -21,7 +21,7 @@ void main() {
 	
 	// Forward position, texture and normal coordinates to be
 	// processed in the fragment shader for lighting.
-	varyingPos          = worldPos.xyz               ;
-	varyingST           = attributeST                ;
-	varyingNrml         = mat3(M) * attributeNrml    ;
+	varyingPos          = worldPos.xyz           ;
+	varyingST           = attributeST            ;
+	varyingNrml         = mat3(M) * attributeNrml;
 }
