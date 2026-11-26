@@ -320,8 +320,10 @@ int main() {
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_CULL_FACE);
 		
-		glUniform1ui(mdl::LOC_MODEL_LAMPS, scn::MODEL_LAMP_MASKS[scn::HEART_SHELL] & scene.lampsOn);
-		mdl::drawModel(models[scn::HEART_SHELL], xform::modelMatrix(scene.heart));
+		if ( scene.lampsOn & (1u << scn::HEART_LAMP) ) {
+			glUniform1ui(mdl::LOC_MODEL_LAMPS, scn::MODEL_LAMP_MASKS[scn::HEART_SHELL] & scene.lampsOn);
+			mdl::drawModel(models[scn::HEART_SHELL], xform::modelMatrix(scene.heart));
+		}
 		
 		glDisable(GL_CULL_FACE);
 		
